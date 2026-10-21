@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mappe Concettuali – Editor</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='2' width='12' height='8' rx='3' fill='%231e3a8a'/%3E%3Crect x='1' y='22' width='12' height='8' rx='3' fill='%23f59e0b'/%3E%3Crect x='19' y='22' width='12' height='8' rx='3' fill='%2310b981'/%3E%3Cpath d='M16 10v5M7 22v-4h18v4' stroke='%2364748b' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- ============ TOOLBAR ============ -->
+  <header id="toolbar">
+    <div class="tb-group">
+      <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Le mie mappe"></button>
+      <div class="brand" title="Mappe Concettuali">
+        <svg viewBox="0 0 32 32" width="26" height="26"><rect x="10" y="2" width="12" height="8" rx="3" fill="#1e3a8a"/><rect x="1" y="22" width="12" height="8" rx="3" fill="#f59e0b"/><rect x="19" y="22" width="12" height="8" rx="3" fill="#10b981"/><path d="M16 10v5M7 22v-4h18v4" stroke="#64748b" stroke-width="2" fill="none"/></svg>
+      </div>
+      <input id="map-title" type="text" spellcheck="false" autocomplete="off" aria-label="Titolo della mappa">
+      <span id="save-state" class="save-state">Salvato</span>
+    </div>
+
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="icon-btn" id="btn-undo" data-icon="undo" title="Annulla (Ctrl+Z)"></button>
+      <button class="icon-btn" id="btn-redo" data-icon="redo" title="Ripeti (Ctrl+Y)"></button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="tool-btn" id="btn-child" data-icon="child" title="Aggiungi concetto figlio (Tab)"><span>Figlio</span></button>
+      <button class="tool-btn" id="btn-sibling" data-icon="sibling" title="Aggiungi concetto fratello (Invio)"><span>Fratello</span></button>
+      <button class="tool-btn" id="btn-link" data-icon="link" title="Collega due concetti (K)"><span>Collega</span></button>
+      <button class="icon-btn" id="btn-delete" data-icon="trash" title="Elimina (Canc)"></button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group seg" id="layout-seg" role="group" aria-label="Disposizione">
+      <button data-layout="down" data-icon="layoutDown" title="Gerarchica dall'alto"></button>
+      <button data-layout="right" data-icon="layoutRight" title="Orizzontale"></button>
+      <button data-layout="mind" data-icon="layoutMind" title="Mappa mentale (bilanciata)"></button>
+    </div>
+    <button class="tool-btn" id="btn-free-mode" data-icon="move" title="Attiva/disattiva spostamento e ridimensionamento libero dei riquadri"><span>Libero</span></button>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="icon-btn" id="btn-zoom-out" data-icon="zoomOut" title="Riduci (Ctrl -)"></button>
+      <button class="zoom-label" id="zoom-label" title="Zoom 100%">100%</button>
+      <button class="icon-btn" id="btn-zoom-in" data-icon="zoomIn" title="Ingrandisci (Ctrl +)"></button>
+      <button class="icon-btn" id="btn-fit" data-icon="fit" title="Centra e adatta alla finestra (Ctrl+0)"></button>
+      <button class="icon-btn" id="btn-fullscreen" data-icon="fullscreen" title="Schermo intero (F11)"></button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group">
+      <button class="tool-btn" id="btn-import" data-icon="text" title="Crea la mappa da un testo / scaletta"><span>Da testo</span></button>
+      <button class="icon-btn" id="btn-speak" data-icon="volume" title="Leggi ad alta voce"></button>
+      <button class="icon-btn" id="btn-help" data-icon="help" title="Guida e scorciatoie"></button>
+      <button class="icon-btn" id="btn-props" data-icon="sliders" title="Mostra/nascondi pannello proprietà"></button>
+      <button class="tool-btn auth-btn" id="btn-auth" title="Account e salvataggio online">
+        <span class="auth-dot" id="auth-dot"></span>
+        <span class="auth-avatar" id="auth-avatar" hidden></span>
+        <span data-icon="user" id="auth-icon"></span>
+        <span id="auth-label">Accedi</span>
+      </button>
+      <button class="btn primary" id="btn-export" data-icon="download" title="Scarica PDF / Stampa (Ctrl+P)"><span>PDF / Stampa</span></button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ SIDEBAR ============ -->
+    <aside id="sidebar" class="collapsed">
+      <div class="sb-head">
+        <h2>Le mie mappe</h2>
+        <button class="btn primary small" id="btn-new" data-icon="plus"><span>Nuova</span></button>
+      </div>
+      <div id="sb-cloud-bar" class="sb-cloud-bar">
+        <div class="sbc-info">
+          <span class="sbc-dot" id="sbc-dot"></span>
+          <span id="sbc-text">Salvataggio locale</span>
+        </div>
+        <button type="button" class="btn small" id="sbc-btn">Accedi</button>
+      </div>
+      <div id="map-list"></div>
+      <div class="sb-foot">
+        <button class="btn small block" id="btn-open-file" data-icon="upload"><span>Apri file (.json, .txt, .opml)</span></button>
+        <button class="btn small block" id="btn-save-file" data-icon="save"><span>Salva su file (.json)</span></button>
+        <button class="btn small block" id="btn-outline" data-icon="text"><span>Scarica come scaletta (.txt)</span></button>
+      </div>
+    </aside>
+
+    <!-- ============ CANVAS ============ -->
+    <section id="canvas-wrap" tabindex="-1">
+      <svg id="canvas" xmlns="http://www.w3.org/2000/svg"><g id="viewport"></g></svg>
+      <div id="editor" contenteditable="true" spellcheck="true"></div>
+      <div id="link-hint" class="floating-hint" hidden>Clicca sul concetto da collegare · <b>Esc</b> per annullare</div>
+    </section>
+
+    <!-- ============ PROPERTIES ============ -->
+    <aside id="props">
+      <div class="props-head"><h2 id="props-title">Impostazioni mappa</h2></div>
+      <div id="props-body"></div>
+    </aside>
+  </main>
+
+  <footer id="statusbar">
+    <span id="status-text"><b>Tab</b> nuovo figlio · <b>Invio</b> nuovo fratello · <b>Doppio clic</b> o <b>F2</b> modifica · <b>Trascina</b> un concetto su un altro per spostarlo · <b>Ctrl+V</b> incolla una scaletta</span>
+    <span id="status-count"></span>
+  </footer>
+</div>
+
+<!-- ============ MODAL: IMPORT TEXT ============ -->
+<div class="modal-bg" id="modal-import" hidden>
+  <div class="modal wide">
+    <div class="modal-h">
+      <h2>Crea la mappa da un testo</h2>
+      <button class="icon-btn" data-close data-icon="x" title="Chiudi"></button>
+    </div>
+    <div class="modal-b import-grid">
+      <div class="imp-left">
+        <textarea id="imp-text" spellcheck="false" placeholder="Scrivi o incolla una scaletta, per esempio:
+
+Il sistema solare
+  [è formato da] Sole
+    [è una] Stella
+  [comprende] Pianeti
+    - Mercurio
+    - Venere
+    - Terra
+      [ha un satellite:] Luna"></textarea>
+        <div class="imp-bar">
+          <button class="btn small" id="imp-example">Inserisci un esempio</button>
+          <span id="imp-stats" class="muted"></span>
+        </div>
+      </div>
+      <div class="imp-right">
+        <div class="imp-preview-wrap"><svg id="imp-preview"></svg><div class="imp-empty" id="imp-empty">Anteprima della mappa</div></div>
+        <div class="imp-help">
+          <p><b>Come funziona:</b> ogni riga è un concetto. Rientra una riga (con <kbd>Tab</kbd> o spazi) per farla diventare un sotto-concetto della riga sopra.</p>
+          <p>Scrivi la <b>parola legame</b> tra parentesi quadre all'inizio: <code>[è formato da] Nucleo</code>.</p>
+          <p>Funzionano anche elenchi puntati (<code>-</code>, <code>•</code>, <code>1.</code>) e titoli Markdown (<code>#</code>, <code>##</code>).</p>
+        </div>
+        <div class="imp-mode">
+          <label><input type="radio" name="imp-mode" value="new" checked> Crea una nuova mappa</label>
+          <label><input type="radio" name="imp-mode" value="append"> Aggiungi sotto il concetto selezionato</label>
+          <label><input type="radio" name="imp-mode" value="replace"> Sostituisci la mappa corrente</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn" data-close>Annulla</button>
+      <button class="btn primary" id="imp-go" data-icon="wand"><span>Crea mappa</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EXPORT ============ -->
+<div class="modal-bg" id="modal-export" hidden>
+  <div class="modal wide">
+    <div class="modal-h">
+      <h2>Scarica PDF e stampa</h2>
+      <button class="icon-btn" data-close data-icon="x" title="Chiudi"></button>
+    </div>
+    <div class="modal-b export-grid">
+      <div class="exp-preview-wrap"><div id="exp-preview"></div></div>
+      <div class="exp-opts">
+        <div class="pp-h">Formato del foglio</div>
+        <div class="seg full" data-opt="size">
+          <button data-v="a4">A4</button><button data-v="a3">A3</button><button data-v="a5">A5</button><button data-v="letter">Letter</button>
+        </div>
+        <div class="pp-h">Orientamento</div>
+        <div class="seg full" data-opt="orient">
+          <button data-v="auto">Automatico</button><button data-v="portrait">Verticale</button><button data-v="landscape">Orizzontale</button>
+        </div>
+        <div class="pp-h">Numero di fogli <span class="muted">(per mappe grandi)</span></div>
+        <div class="seg full" data-opt="pages">
+          <button data-v="1">1</button><button data-v="2">2</button><button data-v="4">4</button><button data-v="6">6</button><button data-v="9">9</button>
+        </div>
+        <div class="pp-h">Margini</div>
+        <div class="seg full" data-opt="margin">
+          <button data-v="narrow">Stretti</button><button data-v="normal">Normali</button><button data-v="wide">Ampi</button>
+        </div>
+        <div class="pp-h">Qualità PDF</div>
+        <div class="seg full" data-opt="quality">
+          <button data-v="std">Standard</button><button data-v="high">Alta</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="exp-title"><span></span> Mostra il titolo</label>
+        <label class="toggle"><input type="checkbox" id="exp-mono"><span></span> Bianco e nero (risparmia inchiostro)</label>
+        <label class="toggle" id="exp-expand-row"><input type="checkbox" id="exp-expand"><span></span> Includi i rami compressi</label>
+        <div id="exp-info" class="exp-info"></div>
+        <div class="exp-actions">
+          <button class="btn primary big" id="exp-pdf" data-icon="download"><span>Scarica PDF</span></button>
+          <button class="btn big" id="exp-print" data-icon="printer"><span>Stampa</span></button>
+          <div class="exp-row">
+            <button class="btn small" id="exp-png" data-icon="image"><span>Immagine PNG</span></button>
+            <button class="btn small" id="exp-svg" data-icon="image"><span>Vettoriale SVG</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: HELP ============ -->
+<div class="modal-bg" id="modal-help" hidden>
+  <div class="modal">
+    <div class="modal-h">
+      <h2>Guida rapida</h2>
+      <button class="icon-btn" data-close data-icon="x" title="Chiudi"></button>
+    </div>
+    <div class="modal-b help">
+      <p>La mappa si <b>dispone da sola</b>: tu scrivi i concetti, l'editor li incolonna e li allinea automaticamente.</p>
+      <div class="help-grid">
+        <div><kbd>Tab</kbd></div><div>Nuovo concetto figlio (anche mentre scrivi)</div>
+        <div><kbd>Invio</kbd></div><div>Conferma il testo / nuovo concetto fratello</div>
+        <div><kbd>Maiusc</kbd>+<kbd>Invio</kbd></div><div>A capo dentro un concetto</div>
+        <div><kbd>F2</kbd> · <kbd>Spazio</kbd> · doppio clic</div><div>Modifica il concetto (oppure inizia semplicemente a scrivere)</div>
+        <div><kbd>Ctrl</kbd>+<kbd>L</kbd> · doppio clic sulla linea</div><div>Scrivi la parola legame</div>
+        <div><kbd>K</kbd></div><div>Collega il concetto selezionato a un altro (collegamento trasversale)</div>
+        <div><kbd>Canc</kbd></div><div>Elimina il concetto e i suoi sotto-concetti</div>
+        <div><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></div><div>Spostati tra i concetti</div>
+        <div><kbd>Alt</kbd>+frecce</div><div>Sposta il concetto prima/dopo i fratelli</div>
+        <div><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd></div><div>Copia, taglia, incolla rami (incolla anche testo e immagini!)</div>
+        <div><kbd>Ctrl</kbd>+<kbd>D</kbd></div><div>Duplica il ramo</div>
+        <div><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></div><div>Annulla / Ripeti</div>
+        <div><kbd>Ctrl</kbd>+<kbd>P</kbd></div><div>Scarica PDF / Stampa</div>
+        <div><kbd>Ctrl</kbd>+<kbd>0</kbd></div><div>Adatta alla finestra</div>
+        <div>Rotella del mouse</div><div>Zoom · trascina lo sfondo per spostarti</div>
+        <div>Trascina un concetto</div><div>Al centro di un altro: diventa suo figlio · sui lati: si mette prima/dopo</div>
+      </div>
+      <p class="muted">Le mappe vengono salvate automaticamente nel browser e, se effettui l'accesso, sincronizzate nel tuo account online.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: AUTH & CLOUD ACCOUNT ============ -->
+<div class="modal-bg" id="modal-auth" hidden>
+  <div class="modal auth-modal">
+    <div class="modal-h">
+      <h2 id="auth-modal-title">Account e salvataggio online</h2>
+      <button class="icon-btn" data-close data-icon="x" title="Chiudi"></button>
+    </div>
+    <div class="modal-b">
+      <!-- Avviso / configurazione rapida se Supabase non è ancora collegato -->
+      <div id="auth-cfg-banner" class="auth-cfg-banner" hidden>
+        <div class="acb-top">
+          <div>
+            <b>Database cloud non ancora collegato</b>
+            <div class="small muted">Su Vercel si collega in automatico con le variabili <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code>, oppure puoi incollarle qui sotto per collegarlo subito:</div>
+          </div>
+          <button type="button" class="btn small" id="auth-cfg-toggle">Configura</button>
+        </div>
+        <div id="auth-cfg-box" class="auth-cfg-box" hidden>
+          <label class="auth-field">
+            <span>Project URL (Supabase)</span>
+            <input type="url" class="pp-input" id="auth-cfg-url" placeholder="https://xyzcompany.supabase.co" autocomplete="off">
+          </label>
+          <label class="auth-field">
+            <span>Anon / Publishable Key (Supabase)</span>
+            <input type="text" class="pp-input" id="auth-cfg-key" placeholder="eyJhbGciOi... oppure sb_publishable_..." autocomplete="off">
+          </label>
+          <div class="auth-cfg-actions">
+            <button type="button" class="btn primary small" id="auth-cfg-save">Salva e collega</button>
+            <button type="button" class="btn small" id="auth-cfg-clear">Scollega</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="auth-msg" class="auth-msg" hidden></div>
+
+      <!-- 1. VISTA OSPITE: ACCEDI / REGISTRATI / RECUPERA PASSWORD -->
+      <div id="auth-guest-view">
+        <div class="seg full auth-tabs" id="auth-tabs">
+          <button type="button" data-auth-tab="login" class="active">Accedi</button>
+          <button type="button" data-auth-tab="signup">Registrati</button>
+          <button type="button" data-auth-tab="reset">Password dimenticata</button>
+        </div>
+
+        <form id="auth-form" class="auth-form" autocomplete="on">
+          <label class="auth-field" id="auth-name-wrap" hidden>
+            <span>Il tuo nome</span>
+            <input type="text" class="pp-input" id="auth-name" placeholder="es. Lorenzo" autocomplete="name">
+          </label>
+
+          <label class="auth-field">
+            <span>Email</span>
+            <input type="email" class="pp-input" id="auth-email" placeholder="nome@esempio.it" required autocomplete="email">
+          </label>
+
+          <label class="auth-field" id="auth-pass-wrap">
+            <span>Password</span>
+            <input type="password" class="pp-input" id="auth-password" placeholder="Almeno 6 caratteri" autocomplete="current-password">
+          </label>
+
+          <button type="submit" class="btn primary big block auth-submit" id="auth-submit">
+            <span id="auth-submit-text">Accedi all'account</span>
+          </button>
+        </form>
+
+        <div class="auth-alt" id="auth-alt-actions">
+          <div class="auth-divider"><span>oppure</span></div>
+          <div class="auth-alt-grid">
+            <button type="button" class="btn block" id="auth-magic-btn" data-icon="mail">
+              <span>Invia link di accesso via email</span>
+            </button>
+            <button type="button" class="btn block" id="auth-google-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.62H1.29a11.99 11.99 0 0 0 0 10.76l3.98-3.09Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96Z"/></svg>
+              <span>Continua con Google</span>
+            </button>
+          </div>
+        </div>
+
+        <p class="auth-foot-note muted small">
+          Effettuando l'accesso, le mappe che hai creato sul dispositivo vengono salvate automaticamente nel tuo account online e sincronizzate su tutti i tuoi dispositivi.
+        </p>
+      </div>
+
+      <!-- 2. VISTA IMPOSTA NUOVA PASSWORD -->
+      <div id="auth-recovery-view" hidden>
+        <p class="small muted">Scegli una nuova password per il tuo account (almeno 6 caratteri):</p>
+        <form id="auth-recovery-form" class="auth-form">
+          <label class="auth-field">
+            <span>Nuova password</span>
+            <input type="password" class="pp-input" id="auth-new-password" placeholder="Nuova password (min. 6 caratteri)" required autocomplete="new-password">
+          </label>
+          <div class="auth-row-btns">
+            <button type="submit" class="btn primary" id="auth-save-pass-btn" data-icon="check"><span>Salva nuova password</span></button>
+            <button type="button" class="btn" id="auth-cancel-pass-btn">Annulla</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 3. VISTA PROFILO UTENTE LOGGATO -->
+      <div id="auth-user-view" hidden>
+        <div class="prof-card">
+          <div class="prof-avatar" id="prof-avatar">U</div>
+          <div class="prof-meta">
+            <div class="prof-name-line" id="prof-display-title">Utente</div>
+            <div class="prof-email muted" id="prof-email">email@esempio.it</div>
+            <div class="prof-sync-badge" id="prof-sync-badge">
+              <span class="sbc-dot ok"></span>
+              <span id="prof-sync-text">Sincronizzato nel cloud</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pp-sec">
+          <div class="pp-h">Nome visualizzato</div>
+          <div class="prof-name-row">
+            <input type="text" class="pp-input" id="prof-name-input" placeholder="Il tuo nome">
+            <button type="button" class="btn small primary" id="prof-save-name">Salva</button>
+          </div>
+        </div>
+
+        <div class="pp-sec">
+          <div class="pp-h">Sincronizzazione e sicurezza</div>
+          <div class="pp-grid2">
+            <button type="button" class="btn small" id="prof-sync-now" data-icon="refresh"><span>Sincronizza ora</span></button>
+            <button type="button" class="btn small" id="prof-change-pass" data-icon="key"><span>Cambia password</span></button>
+          </div>
+        </div>
+
+        <div class="pp-sec prof-bottom-actions">
+          <button type="button" class="btn block" id="prof-logout" data-icon="logOut"><span>Esci dall'account</span></button>
+          <button type="button" class="btn small danger block" id="prof-delete-account" data-icon="trash"><span>Elimina definitivamente account e mappe online</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="busy" hidden><div class="spinner"></div><div id="busy-text">Preparazione…</div></div>
+<div id="print-root"></div>
+<input type="file" id="file-open" accept=".json,.txt,.md,.opml,.xml,application/json,text/plain" hidden>
+<input type="file" id="file-image" accept="image/*" hidden>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/outline.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/render.js"></script>
+<script src="js/exporter.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
