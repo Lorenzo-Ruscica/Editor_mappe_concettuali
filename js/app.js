@@ -160,9 +160,6 @@
     authPassword: document.getElementById('auth-password'),
     authSubmit: document.getElementById('auth-submit'),
     authSubmitText: document.getElementById('auth-submit-text'),
-    authAltActions: document.getElementById('auth-alt-actions'),
-    authMagicBtn: document.getElementById('auth-magic-btn'),
-    authGoogleBtn: document.getElementById('auth-google-btn'),
     authRecoveryView: document.getElementById('auth-recovery-view'),
     authRecoveryForm: document.getElementById('auth-recovery-form'),
     authNewPassword: document.getElementById('auth-new-password'),
@@ -403,7 +400,6 @@
         dom.authPassword.required = authTab !== 'reset';
         dom.authPassword.autocomplete = authTab === 'signup' ? 'new-password' : 'current-password';
       }
-      if (dom.authAltActions) dom.authAltActions.hidden = authTab === 'reset';
       if (dom.authSubmitText) {
         dom.authSubmitText.textContent =
           authTab === 'login'
@@ -521,34 +517,6 @@
       } finally {
         dom.authSubmit.disabled = false;
         updateAuthUI();
-      }
-    });
-
-    // Accesso rapido con Magic Link via email
-    dom.authMagicBtn?.addEventListener('click', async () => {
-      const email = dom.authEmail?.value.trim() || '';
-      if (!email) {
-        setAuthMessage('Scrivi prima la tua email nel campo qui sopra, poi clicca su "Invia link di accesso".', 'error');
-        dom.authEmail?.focus();
-        return;
-      }
-      dom.authMagicBtn.disabled = true;
-      setAuthMessage('Invio link di accesso in corso…', 'info');
-      const res = await window.CMCloud.signInWithMagicLink(email);
-      dom.authMagicBtn.disabled = false;
-      if (!res.ok) {
-        setAuthMessage(res.error, 'error');
-      } else {
-        setAuthMessage('Controlla la tua posta: clicca sul link ricevuto per entrare subito senza password!', 'ok');
-      }
-    });
-
-    // Accesso con Google OAuth
-    dom.authGoogleBtn?.addEventListener('click', async () => {
-      setAuthMessage('Reindirizzamento a Google…', 'info');
-      const res = await window.CMCloud.signInWithProvider('google');
-      if (!res.ok) {
-        setAuthMessage(res.error, 'error');
       }
     });
 

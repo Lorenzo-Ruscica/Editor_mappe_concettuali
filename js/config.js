@@ -9,6 +9,6 @@
  * dalle policy RLS del database. NON inserire mai qui la chiave "service_role"/"secret".
  */
 window.CM_CONFIG = window.CM_CONFIG || {
-  supabaseUrl: '',      // es. 'https://abcdefghijklmno.supabase.co'
-  supabaseAnonKey: ''   // es. 'eyJhbGciOi...' oppure 'sb_publishable_...'
+  supabaseUrl: 'https://btnotzqmdzobdcnbozuy.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0bm90enFtZHpvYmRjbmJvenV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDY4MjIsImV4cCI6MjEwODE4MjgyMn0.wxF5x4ZK9yUKV1ROjjlXJq-hUHEyT05GzmS3gN3GOVY'
 };

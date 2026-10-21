@@ -130,28 +130,44 @@
 
   const LOCAL_CFG_KEY = 'cm_supabase_cfg_v1';
 
+  function sanitizePair(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const supabaseUrl = String(raw.supabaseUrl || '')
+      .trim()
+      .replace(/^['"`]+|['"`]+$/g, '')
+      .replace(/\s+/g, '')
+      .replace(/\/+$/, '');
+    const supabaseAnonKey = String(raw.supabaseAnonKey || '')
+      .trim()
+      .replace(/^['"`]+|['"`]+$/g, '')
+      .replace(/\s+/g, '');
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return { supabaseUrl, supabaseAnonKey };
+  }
+
   function getSavedLocalConfig() {
     try {
       const raw = localStorage.getItem(LOCAL_CFG_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.supabaseUrl && parsed.supabaseAnonKey) return parsed;
+      return sanitizePair(JSON.parse(raw));
     } catch {}
     return null;
   }
 
   async function loadConfig() {
-    const local = window.CM_CONFIG || {};
-    if (local.supabaseUrl && local.supabaseAnonKey) return local;
     const saved = getSavedLocalConfig();
     if (saved) return saved;
-    if (window.location.protocol === 'file:') return null;
-    try {
-      const res = await fetch('/api/config', { cache: 'no-store' });
-      if (!res.ok) return null;
-      const json = await res.json();
-      if (json && json.supabaseUrl && json.supabaseAnonKey) return json;
-    } catch {}
+    if (window.location.protocol !== 'file:') {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        if (res.ok) {
+          const json = sanitizePair(await res.json());
+          if (json) return json;
+        }
+      } catch {}
+    }
+    const local = sanitizePair(window.CM_CONFIG || {});
+    if (local) return local;
     return null;
   }
 
@@ -632,17 +648,49 @@
     return state.configured && state.client;
   }
 
+  function isInvalidApiKeyError(err) {
+    const msg = String(err?.message || err?.error_description || err || '').toLowerCase();
+    return msg.includes('invalid api key') || msg.includes('apikey');
+  }
+
+  async function recoverFromInvalidApiKey() {
+    try {
+      localStorage.removeItem(LOCAL_CFG_KEY);
+    } catch {}
+    const fallback = sanitizePair(window.CM_CONFIG || {});
+    if (!fallback || !window.supabase || typeof window.supabase.createClient !== 'function') return false;
+    state.client = window.supabase.createClient(fallback.supabaseUrl, fallback.supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'cm-auth'
+      }
+    });
+    state.configured = true;
+    state.client.auth.onAuthStateChange((event, session) => {
+      setTimeout(() => {
+        handleAuthEvent(event, session).catch((e) => console.warn('[CMCloud]', e));
+      }, 0);
+    });
+    return true;
+  }
+
   async function signUp(email, password, displayName = '') {
     if (!(await ensureClient())) return notConfigured();
     try {
-      const { data, error } = await state.client.auth.signUp({
+      const payload = {
         email: String(email || '').trim(),
         password: String(password || ''),
         options: {
           data: { display_name: String(displayName || '').trim().slice(0, 80) },
           emailRedirectTo: redirectUrl()
         }
-      });
+      };
+      let { data, error } = await state.client.auth.signUp(payload);
+      if (error && isInvalidApiKeyError(error) && (await recoverFromInvalidApiKey())) {
+        ({ data, error } = await state.client.auth.signUp(payload));
+      }
       if (error) return fail(error);
       // Con la conferma email attiva Supabase non segnala gli account già esistenti: li riconosciamo così
       if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
@@ -657,10 +705,14 @@
   async function signIn(email, password) {
     if (!(await ensureClient())) return notConfigured();
     try {
-      const { data, error } = await state.client.auth.signInWithPassword({
+      const payload = {
         email: String(email || '').trim(),
         password: String(password || '')
-      });
+      };
+      let { data, error } = await state.client.auth.signInWithPassword(payload);
+      if (error && isInvalidApiKeyError(error) && (await recoverFromInvalidApiKey())) {
+        ({ data, error } = await state.client.auth.signInWithPassword(payload));
+      }
       if (error) return fail(error);
       return { ok: true, user: data.user };
     } catch (e) {

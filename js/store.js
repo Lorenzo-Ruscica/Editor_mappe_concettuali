@@ -44,73 +44,23 @@
     };
   }
 
+  const LEGACY_SAMPLE_TITLES = new Set(["Il Ciclo dell'Acqua", 'La Costituzione Italiana']);
+
+  function isLegacySampleMap(m) {
+    if (!m) return false;
+    if (m.sample === true && LEGACY_SAMPLE_TITLES.has(m.title)) return true;
+    if (LEGACY_SAMPLE_TITLES.has(m.title) && m.root && LEGACY_SAMPLE_TITLES.has(m.root.text)) return true;
+    return false;
+  }
+
   function createStarterMaps() {
-    const root1 = parseOutline(`Il Ciclo dell'Acqua
-  [inizia con l'] Evaporazione
-    [causata dal] Calore del Sole
-    [trasforma l'acqua in] Vapore acqueo
-      [sale verso l'] Atmosfera
-  [prosegue con la] Condensazione
-    [il vapore si raffredda e forma] Nuvole e nebbia
-      [composte da] Minuscoli goccioline
-  [provoca le] Precipitazioni
-    [sotto forma di] Pioggia
-    [se fa freddo] Neve o grandine
-  [si conclude con il] Ritorno ai mari
-    [scorrimento in] Fiumi e torrenti
-    [infiltrazione nelle] Falde acquifere sotterranee`);
-
-    const map1 = {
-      id: uid('map'),
-      title: "Il Ciclo dell'Acqua",
-      updatedAt: Date.now(),
-      layout: 'down',
-      style: defaultStyle(),
-      root: root1,
-      links: []
-    };
-
-    // Add a meaningful cross-link between Falde acquifere and Evaporazione/Piante or similar if desired
-    const root2 = parseOutline(`La Costituzione Italiana
-  [entrata in vigore] 1° Gennaio 1948
-    [scritta dall'] Assemblea Costituente
-    [dopo il] Referendum del 2 Giugno 1946
-  [struttura] 139 Articoli
-    [Art. 1 - 12] Principi Fondamentali
-      - Democrazia e sovranità popolare
-      - Uguaglianza (Art. 3)
-      - Diritto al lavoro (Art. 4)
-    [Art. 13 - 54] Diritti e Doveri dei cittadini
-      - Libertà personali e civili
-      - Rapporti etico-sociali ed economici
-    [Art. 55 - 139] Ordinamento della Repubblica
-      [potere legislativo] Parlamento
-      [potere esecutivo] Governo
-      [potere giudiziario] Magistratura
-      [garante] Presidente della Repubblica`);
-
-    const map2 = {
-      id: uid('map'),
-      title: 'La Costituzione Italiana',
-      updatedAt: Date.now() - 3600 * 1000,
-      layout: 'down',
-      style: Object.assign(defaultStyle(), { theme: 'scuola' }),
-      root: root2,
-      links: []
-    };
-
-    // Le mappe di esempio sono marcate "sample": non vengono caricate online finché l'utente non le modifica
-    map1.sample = true;
-    map2.sample = true;
-    return [map1, map2];
+    const map = createBlankMap('Nuova mappa concettuale');
+    map.sample = true;
+    return [map];
   }
 
   function createBlankMap(title = 'Nuova mappa concettuale') {
     const root = createNode(title, '');
-    const c1 = createNode('Primo argomento', 'comprende');
-    const c2 = createNode('Secondo argomento', 'comprende');
-    c1.children.push(createNode('Dettaglio o esempio', 'è caratterizzato da'));
-    root.children.push(c1, c2);
     return {
       id: uid('map'),
       title,
@@ -254,7 +204,9 @@
         const raw = localStorage.getItem(k.maps);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) maps = parsed.map(normalizeMap);
+          if (Array.isArray(parsed)) {
+            maps = parsed.map(normalizeMap).filter((m) => !isLegacySampleMap(m));
+          }
         }
       } catch (e) {
         console.warn('Errore lettura localStorage:', e);

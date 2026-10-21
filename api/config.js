@@ -4,6 +4,17 @@
  * leggendoli dalle variabili d'ambiente del progetto Vercel.
  * La chiave service_role NON deve mai essere esposta qui.
  */
+const DEFAULT_URL = 'https://btnotzqmdzobdcnbozuy.supabase.co';
+const DEFAULT_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0bm90enFtZHpvYmRjbmJvenV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MDY4MjIsImV4cCI6MjEwODE4MjgyMn0.wxF5x4ZK9yUKV1ROjjlXJq-hUHEyT05GzmS3gN3GOVY';
+
+function cleanVal(v) {
+  return String(v || '')
+    .trim()
+    .replace(/^['"`]+|['"`]+$/g, '')
+    .replace(/\s+/g, '');
+}
+
 module.exports = (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -14,8 +25,9 @@ module.exports = (req, res) => {
     return;
   }
 
-  const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
-  const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '').trim();
+  const supabaseUrl = cleanVal(process.env.SUPABASE_URL) || DEFAULT_URL;
+  const supabaseAnonKey =
+    cleanVal(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY) || DEFAULT_ANON_KEY;
 
   res.statusCode = 200;
   res.end(JSON.stringify({ supabaseUrl, supabaseAnonKey }));

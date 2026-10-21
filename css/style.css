@@ -373,15 +373,8 @@ select.pp-input { cursor: pointer; }
 .auth-tabs { margin-bottom: 14px; }
 .auth-form { display: flex; flex-direction: column; gap: 11px; }
 .auth-field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: #374151; }
-.auth-submit { margin-top: 4px; justify-content: center; }
+.btn.auth-submit { margin-top: 4px; justify-content: center; text-align: center; }
 
-.auth-alt { margin-top: 14px; }
-.auth-divider {
-  display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 10px 0 12px;
-}
-.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-.auth-alt-grid { display: flex; flex-direction: column; gap: 8px; }
-.auth-alt-grid .btn { justify-content: center; }
 .auth-foot-note { margin: 14px 0 2px; line-height: 1.45; text-align: center; }
 .auth-row-btns { display: flex; gap: 8px; margin-top: 6px; }
 
