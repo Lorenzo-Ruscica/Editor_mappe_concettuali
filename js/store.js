@@ -5,6 +5,7 @@
   const { createNode, parseOutline } = window.CMOutline;
 
   const STORAGE_KEY = 'algor_cm_maps_v1';
+  const FOLDERS_KEY = 'algor_cm_folders_v1';
   const ACTIVE_KEY = 'algor_cm_active_v1';
   const META_KEY = 'algor_cm_meta_v1';          // modifiche in attesa di sincronizzazione (dirty / eliminate)
   const LAST_USER_KEY = 'algor_cm_last_user_v1'; // ultimo utente loggato (per aprire subito la sua cache locale)
@@ -17,17 +18,30 @@
    */
   function keysFor(scope) {
     if (!scope || scope === GUEST_SCOPE) {
-      return { maps: STORAGE_KEY, active: ACTIVE_KEY, meta: META_KEY };
+      return { maps: STORAGE_KEY, folders: FOLDERS_KEY, active: ACTIVE_KEY, meta: META_KEY };
     }
     return {
       maps: `${STORAGE_KEY}__${scope}`,
+      folders: `${FOLDERS_KEY}__${scope}`,
       active: `${ACTIVE_KEY}__${scope}`,
       meta: `${META_KEY}__${scope}`
     };
   }
 
   function emptyMeta() {
-    return { dirty: [], deleted: [] };
+    return { dirty: [], deleted: [], foldersDirty: false };
+  }
+
+  function normalizeFolder(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const name = String(raw.name || '').trim().slice(0, 60);
+    if (!name) return null;
+    return {
+      id: String(raw.id || uid('fld')),
+      name,
+      color: String(raw.color || '#2563eb'),
+      updatedAt: Number(raw.updatedAt) || Date.now()
+    };
   }
 
   function defaultStyle() {
@@ -48,22 +62,17 @@
 
   function isLegacySampleMap(m) {
     if (!m) return false;
-    if (m.sample === true && LEGACY_SAMPLE_TITLES.has(m.title)) return true;
+    if (m.sample === true) return true;
     if (LEGACY_SAMPLE_TITLES.has(m.title) && m.root && LEGACY_SAMPLE_TITLES.has(m.root.text)) return true;
     return false;
   }
 
-  function createStarterMaps() {
-    const map = createBlankMap('Nuova mappa concettuale');
-    map.sample = true;
-    return [map];
-  }
-
-  function createBlankMap(title = 'Nuova mappa concettuale') {
+  function createBlankMap(title = 'Nuova mappa concettuale', folderId = '') {
     const root = createNode(title, '');
     return {
       id: uid('map'),
       title,
+      folderId: String(folderId || ''),
       updatedAt: Date.now(),
       layout: 'down',
       style: defaultStyle(),
@@ -112,6 +121,7 @@
     const out = {
       id: raw?.id || uid('map'),
       title: String(raw?.title || root.text || 'Mappa concettuale').slice(0, 120),
+      folderId: String(raw?.folderId || ''),
       updatedAt: Number(raw?.updatedAt) || Date.now(),
       layout: ['down', 'right', 'mind'].includes(raw?.layout) ? raw.layout : 'down',
       style: mergedStyle,
@@ -175,6 +185,7 @@
   class Store {
     constructor() {
       this.maps = [];
+      this.folders = [];
       this.activeId = null;
       this.history = new Map(); // mapId -> { undo: [], redo: [] }
       this.onSaveState = null;
@@ -198,6 +209,7 @@
     readCache(scope) {
       const k = keysFor(scope);
       let maps = [];
+      let folders = [];
       let meta = emptyMeta();
       let active = null;
       try {
@@ -212,35 +224,56 @@
         console.warn('Errore lettura localStorage:', e);
       }
       try {
+        const rawF = localStorage.getItem(k.folders);
+        if (rawF) {
+          const parsedF = JSON.parse(rawF);
+          if (Array.isArray(parsedF)) {
+            folders = parsedF.map(normalizeFolder).filter(Boolean);
+          }
+        }
+      } catch {}
+      try {
         const m = JSON.parse(localStorage.getItem(k.meta) || 'null');
         if (m && typeof m === 'object') {
           meta = {
             dirty: Array.isArray(m.dirty) ? m.dirty.filter((x) => typeof x === 'string') : [],
             deleted: Array.isArray(m.deleted)
               ? m.deleted.filter((d) => d && typeof d.id === 'string').map((d) => ({ id: d.id, at: Number(d.at) || Date.now() }))
-              : []
+              : [],
+            foldersDirty: Boolean(m.foldersDirty)
           };
         }
       } catch {}
       try {
         active = localStorage.getItem(k.active);
       } catch {}
-      return { maps, meta, active };
+      return { maps, folders, meta, active };
     }
 
     /**
      * Sostituisce completamente lo scope attivo (ospite <-> utente) con le mappe indicate.
      */
-    applyScope(scope, maps, meta = null, preferredActive = null) {
+    applyScope(scope, maps, meta = null, preferredActive = null, folders = null) {
       this.scope = scope || GUEST_SCOPE;
       this.keys = keysFor(this.scope);
       this.history.clear();
-      this.maps = Array.isArray(maps) && maps.length > 0 ? maps : createStarterMaps();
-      this.meta = meta ? { dirty: [...(meta.dirty || [])], deleted: [...(meta.deleted || [])] } : emptyMeta();
+      this.maps = Array.isArray(maps) ? maps.filter((m) => !isLegacySampleMap(m)) : [];
+      if (Array.isArray(folders)) {
+        this.folders = folders.map(normalizeFolder).filter(Boolean);
+      } else {
+        this.folders = this.readCache(this.scope).folders;
+      }
+      this.meta = meta
+        ? {
+            dirty: [...(meta.dirty || [])],
+            deleted: [...(meta.deleted || [])],
+            foldersDirty: Boolean(meta.foldersDirty)
+          }
+        : emptyMeta();
       this.activeId =
         preferredActive && this.maps.some((m) => m.id === preferredActive)
           ? preferredActive
-          : this.maps[0].id;
+          : this.maps[0]?.id || null;
       try {
         if (this.scope === GUEST_SCOPE) localStorage.removeItem(LAST_USER_KEY);
         else localStorage.setItem(LAST_USER_KEY, this.scope);
@@ -251,14 +284,23 @@
     /**
      * Sostituisce le mappe dello scope corrente (usato dopo una sincronizzazione) mantenendo la mappa aperta se esiste ancora.
      */
-    replaceMaps(maps, meta) {
+    replaceMaps(maps, meta, folders = null) {
       const prevActive = this.activeId;
-      this.maps = Array.isArray(maps) && maps.length > 0 ? maps : createStarterMaps();
-      if (meta) this.meta = { dirty: [...(meta.dirty || [])], deleted: [...(meta.deleted || [])] };
+      this.maps = Array.isArray(maps) ? maps.filter((m) => !isLegacySampleMap(m)) : [];
+      if (Array.isArray(folders)) {
+        this.folders = folders.map(normalizeFolder).filter(Boolean);
+      }
+      if (meta) {
+        this.meta = {
+          dirty: [...(meta.dirty || [])],
+          deleted: [...(meta.deleted || [])],
+          foldersDirty: Boolean(meta.foldersDirty)
+        };
+      }
       for (const id of Array.from(this.history.keys())) {
         if (!this.maps.some((m) => m.id === id)) this.history.delete(id);
       }
-      this.activeId = this.maps.some((m) => m.id === prevActive) ? prevActive : this.maps[0].id;
+      this.activeId = this.maps.some((m) => m.id === prevActive) ? prevActive : this.maps[0]?.id || null;
       this.persist(false);
     }
 
@@ -266,6 +308,7 @@
       const k = keysFor(scope);
       try {
         localStorage.removeItem(k.maps);
+        localStorage.removeItem(k.folders);
         localStorage.removeItem(k.active);
         localStorage.removeItem(k.meta);
       } catch {}
@@ -276,12 +319,22 @@
     }
 
     hasPendingChanges() {
-      return this.meta.dirty.length > 0 || this.meta.deleted.length > 0;
+      return this.meta.dirty.length > 0 || this.meta.deleted.length > 0 || Boolean(this.meta.foldersDirty);
     }
 
     markDirty(mapId) {
       if (this.scope === GUEST_SCOPE || !mapId) return;
       if (!this.meta.dirty.includes(mapId)) this.meta.dirty.push(mapId);
+    }
+
+    markFoldersDirty() {
+      if (this.scope === GUEST_SCOPE) return;
+      this.meta.foldersDirty = true;
+    }
+
+    clearFoldersDirty() {
+      this.meta.foldersDirty = false;
+      this.saveMeta();
     }
 
     /**
@@ -312,17 +365,14 @@
     loadFromStorage() {
       const cache = this.readCache(this.scope);
       this.maps = cache.maps;
+      this.folders = cache.folders;
       this.meta = cache.meta;
-
-      if (this.maps.length === 0) {
-        this.maps = createStarterMaps();
-      }
 
       const savedActive = cache.active;
       if (savedActive && this.maps.some((m) => m.id === savedActive)) {
         this.activeId = savedActive;
       } else {
-        this.activeId = this.maps[0].id;
+        this.activeId = this.maps[0]?.id || null;
       }
       this.persist(false);
     }
@@ -331,14 +381,15 @@
       const current = this.getMap();
       if (current && touchTime) {
         current.updatedAt = Date.now();
-        // Una mappa di esempio modificata diventa una mappa vera e propria dell'utente
         if (current.sample) delete current.sample;
         this.markDirty(current.id);
       }
       if (this.onSaveState) this.onSaveState('saving');
       try {
         localStorage.setItem(this.keys.maps, JSON.stringify(this.maps));
+        localStorage.setItem(this.keys.folders, JSON.stringify(this.folders));
         if (this.activeId) localStorage.setItem(this.keys.active, this.activeId);
+        else localStorage.removeItem(this.keys.active);
         localStorage.setItem(this.keys.meta, JSON.stringify(this.meta));
         if (this.onSaveState) {
           setTimeout(() => this.onSaveState && this.onSaveState('saved'), 140);
@@ -347,7 +398,7 @@
         console.error('Errore salvataggio localStorage:', e);
         if (this.onSaveState) this.onSaveState('error');
       }
-      if (current && touchTime && this.onMapChanged) {
+      if (touchTime && this.onMapChanged) {
         try {
           this.onMapChanged(current);
         } catch (e) {
@@ -357,7 +408,7 @@
     }
 
     getMap() {
-      return this.maps.find((m) => m.id === this.activeId) || this.maps[0];
+      return this.maps.find((m) => m.id === this.activeId) || this.maps[0] || null;
     }
 
     setActiveMap(id) {
@@ -441,11 +492,15 @@
       return true;
     }
 
-    createNewMap(customMap = null) {
-      const m = customMap ? normalizeMap(customMap) : createBlankMap();
+    createNewMap(customMap = null, folderId = '') {
+      const m = customMap ? normalizeMap(customMap) : createBlankMap('Nuova mappa concettuale', folderId);
+      if (folderId && !m.folderId) m.folderId = String(folderId);
+      delete m.sample;
       this.maps.unshift(m);
       this.activeId = m.id;
-      this.persist();
+      this.markDirty(m.id);
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(m);
       return m;
     }
 
@@ -459,8 +514,85 @@
       delete copy.sample;
       this.maps.unshift(copy);
       this.activeId = copy.id;
-      this.persist();
+      this.markDirty(copy.id);
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(copy);
       return copy;
+    }
+
+    renameMap(id, newTitle) {
+      const m = this.maps.find((x) => x.id === id);
+      if (!m) return false;
+      const clean = String(newTitle || '').trim().slice(0, 120);
+      if (!clean) return false;
+      if (m.root && (m.root.text === m.title || m.root.text === 'Nuova mappa concettuale')) {
+        m.root.text = clean;
+      }
+      m.title = clean;
+      m.updatedAt = Date.now();
+      delete m.sample;
+      this.markDirty(m.id);
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(m);
+      return true;
+    }
+
+    setMapFolder(mapId, folderId) {
+      const m = this.maps.find((x) => x.id === mapId);
+      if (!m) return false;
+      m.folderId = String(folderId || '');
+      m.updatedAt = Date.now();
+      delete m.sample;
+      this.markDirty(m.id);
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(m);
+      return true;
+    }
+
+    createFolder(name, color = '#2563eb') {
+      const clean = String(name || '').trim().slice(0, 60);
+      if (!clean) return null;
+      const f = {
+        id: uid('fld'),
+        name: clean,
+        color: String(color || '#2563eb'),
+        updatedAt: Date.now()
+      };
+      this.folders.push(f);
+      this.markFoldersDirty();
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(null);
+      return f;
+    }
+
+    renameFolder(folderId, newName) {
+      const f = this.folders.find((x) => x.id === folderId);
+      if (!f) return false;
+      const clean = String(newName || '').trim().slice(0, 60);
+      if (!clean) return false;
+      f.name = clean;
+      f.updatedAt = Date.now();
+      this.markFoldersDirty();
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(null);
+      return true;
+    }
+
+    deleteFolder(folderId) {
+      const idx = this.folders.findIndex((x) => x.id === folderId);
+      if (idx === -1) return false;
+      this.folders.splice(idx, 1);
+      this.markFoldersDirty();
+      for (const m of this.maps) {
+        if (m.folderId === folderId) {
+          m.folderId = '';
+          m.updatedAt = Date.now();
+          this.markDirty(m.id);
+        }
+      }
+      this.persist(false);
+      if (this.onMapChanged) this.onMapChanged(null);
+      return true;
     }
 
     recordDeletion(id) {
@@ -475,23 +607,13 @@
     }
 
     deleteMap(id) {
-      if (this.maps.length <= 1) {
-        this.recordDeletion(id);
-        const fresh = createBlankMap();
-        this.maps = [fresh];
-        this.activeId = fresh.id;
-        this.history.delete(id);
-        this.persist();
-        if (this.onMapDeleted) this.onMapDeleted(id);
-        return fresh;
-      }
       const idx = this.maps.findIndex((m) => m.id === id);
       if (idx === -1) return this.getMap();
       this.recordDeletion(id);
       this.maps.splice(idx, 1);
       this.history.delete(id);
       if (this.activeId === id) {
-        this.activeId = this.maps[Math.max(0, idx - 1)].id;
+        this.activeId = this.maps.length > 0 ? this.maps[Math.max(0, idx - 1)].id : null;
       }
       this.persist(false);
       if (this.onMapDeleted) this.onMapDeleted(id);

@@ -38,6 +38,7 @@
 
   const TABLE = 'maps';
   const PROFILE_TABLE = 'profiles';
+  const FOLDERS_ROW_ID = '__cm_folders__';
   const PUSH_DELAY_MS = 1500;
   const PERIODIC_SYNC_MS = 60 * 1000;
   const FETCH_CHUNK = 40;
@@ -184,7 +185,8 @@
         layout: map.layout,
         style: map.style,
         root: map.root,
-        links: map.links || []
+        links: map.links || [],
+        folderId: map.folderId || ''
       },
       updated_at: new Date(map.updatedAt || Date.now()).toISOString(),
       deleted_at: null
@@ -196,6 +198,7 @@
     return normalizeMap({
       id: row.id,
       title: row.title,
+      folderId: data.folderId || '',
       updatedAt: Date.parse(row.updated_at) || Date.now(),
       layout: data.layout,
       style: data.style,
@@ -237,6 +240,10 @@
     const tombs = new Set((meta.deleted || []).map((d) => d.id));
     const need = [];
     for (const r of index) {
+      if (r.id === FOLDERS_ROW_ID) {
+        if (!r.deleted_at) need.push(r.id);
+        continue;
+      }
       if (r.deleted_at || tombs.has(r.id)) continue;
       const l = local.get(r.id);
       const ru = Date.parse(r.updated_at) || 0;
@@ -246,10 +253,10 @@
   }
 
   /**
-   * Unisce le mappe locali con quelle online.
-   * Restituisce { maps, meta, changed } — le mappe locali non modificate mantengono lo stesso oggetto.
+   * Unisce le mappe e le cartelle locali con quelle online.
+   * Restituisce { maps, folders, meta, changed } — le mappe locali non modificate mantengono lo stesso oggetto.
    */
-  function mergeMaps(localMaps, meta, index, fullRows, adopt = []) {
+  function mergeMaps(localMaps, meta, index, fullRows, adopt = [], localFolders = [], adoptFolders = []) {
     const result = new Map(localMaps.map((m) => [m.id, m]));
     const dirty = new Set(meta.dirty || []);
     const tombs = new Map((meta.deleted || []).map((d) => [d.id, d]));
@@ -257,7 +264,32 @@
     const remoteIds = new Set();
     let changed = false;
 
+    let mergedFolders = Array.isArray(localFolders) ? [...localFolders] : [];
+    let foldersDirty = Boolean(meta.foldersDirty);
+    const foldersRow = full.get(FOLDERS_ROW_ID);
+    if (foldersRow && Array.isArray(foldersRow.data?.folders)) {
+      if (!foldersDirty) {
+        mergedFolders = foldersRow.data.folders;
+        changed = true;
+      }
+    } else if (mergedFolders.length > 0) {
+      // Cartelle presenti in locale ma non ancora caricate su Supabase -> le carichiamo subito
+      foldersDirty = true;
+    }
+    if (Array.isArray(adoptFolders) && adoptFolders.length > 0) {
+      const byId = new Map(mergedFolders.map((f) => [f.id, f]));
+      for (const af of adoptFolders) {
+        if (af && af.id && !byId.has(af.id)) {
+          byId.set(af.id, af);
+          foldersDirty = true;
+          changed = true;
+        }
+      }
+      mergedFolders = Array.from(byId.values());
+    }
+
     for (const r of index) {
+      if (r.id === FOLDERS_ROW_ID) continue;
       remoteIds.add(r.id);
 
       // Eliminata in locale e non ancora propagata: verrà eliminata online da pushPending()
@@ -311,9 +343,11 @@
     const maps = Array.from(result.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     return {
       maps,
+      folders: mergedFolders,
       meta: {
         dirty: Array.from(dirty).filter((id) => result.has(id)),
-        deleted: Array.from(tombs.values())
+        deleted: Array.from(tombs.values()),
+        foldersDirty
       },
       changed
     };
@@ -362,7 +396,27 @@
         if (store.scope === uid) store.clearTombstones(ids);
       }
 
-      // 2. Mappe nuove o modificate (una alla volta: le mappe con immagini possono essere grandi)
+      // 2. Cartelle utente
+      if (store.meta.foldersDirty && store.scope === uid) {
+        const nowIso = new Date().toISOString();
+        const { error } = await state.client
+          .from(TABLE)
+          .upsert(
+            {
+              user_id: uid,
+              id: FOLDERS_ROW_ID,
+              title: FOLDERS_ROW_ID,
+              data: { folders: store.folders || [] },
+              updated_at: nowIso,
+              deleted_at: null
+            },
+            { onConflict: 'user_id,id' }
+          );
+        if (error) throw error;
+        store.clearFoldersDirty();
+      }
+
+      // 3. Mappe nuove o modificate (una alla volta: le mappe con immagini possono essere grandi)
       const dirtyIds = [...store.meta.dirty];
       for (const id of dirtyIds) {
         if (store.scope !== uid) break;
@@ -429,9 +483,9 @@
       const need = idsToDownload(store.maps, store.meta, index);
       const full = need.length ? await fetchRemoteFull(need) : [];
       if (store.scope !== uid) return false;
-      const merged = mergeMaps(store.maps, store.meta, index, full);
+      const merged = mergeMaps(store.maps, store.meta, index, full, [], store.folders, []);
       if (merged.changed) {
-        store.replaceMaps(merged.maps, merged.meta);
+        store.replaceMaps(merged.maps, merged.meta, merged.folders);
         emit('cm:maps-changed', { reason: 'sync' });
       } else {
         store.meta = merged.meta;
@@ -461,15 +515,19 @@
     state.pendingUserId = user.id;
     setStatus('syncing');
 
-    // Mappe create da ospite (esclusi gli esempi mai modificati) da portare nell'account
+    // Mappe e cartelle create da ospite da portare nell'account
     const adopt =
       store.scope === GUEST_SCOPE
         ? store.maps.filter((m) => !m.sample).map((m) => JSON.parse(JSON.stringify(m)))
         : [];
+    const adoptFolders =
+      store.scope === GUEST_SCOPE && Array.isArray(store.folders)
+        ? store.folders.map((f) => JSON.parse(JSON.stringify(f)))
+        : [];
 
     const base =
       store.scope === user.id
-        ? { maps: store.maps, meta: store.meta, active: store.activeId }
+        ? { maps: store.maps, folders: store.folders || [], meta: store.meta, active: store.activeId }
         : store.readCache(user.id);
 
     let index = null;
@@ -487,22 +545,21 @@
     if (state.pendingUserId !== user.id) return;
 
     let baseMaps = base.maps;
-    // Se online ci sono già mappe vere, togliamo gli esempi non modificati dalla cache locale
     if (index && index.some((r) => !r.deleted_at)) {
       baseMaps = baseMaps.filter((m) => !m.sample);
     }
 
     let merged;
     if (index) {
-      merged = mergeMaps(baseMaps, base.meta, index, full, adopt);
+      merged = mergeMaps(baseMaps, base.meta, index, full, adopt, base.folders, adoptFolders);
     } else {
       // Offline: usiamo la cache e accodiamo le mappe ospite per il caricamento successivo
-      merged = mergeMaps(baseMaps, base.meta, [], [], adopt);
+      merged = mergeMaps(baseMaps, base.meta, [], [], adopt, base.folders, adoptFolders);
     }
 
     const preferredActive =
       adopt.length > 0 && store.scope === GUEST_SCOPE ? store.activeId : base.active;
-    store.applyScope(user.id, merged.maps, merged.meta, preferredActive);
+    store.applyScope(user.id, merged.maps, merged.meta, preferredActive, merged.folders);
     if (adopt.length > 0 || store.scope !== GUEST_SCOPE) {
       // Le mappe ospite sono ora nell'account: svuotiamo la cache ospite
       store.clearCache(GUEST_SCOPE);
@@ -532,7 +589,7 @@
     if (prevScope !== GUEST_SCOPE) {
       if (clearUserCache) store.clearCache(prevScope);
       const guest = store.readCache(GUEST_SCOPE);
-      store.applyScope(GUEST_SCOPE, guest.maps, guest.meta, guest.active);
+      store.applyScope(GUEST_SCOPE, guest.maps, guest.meta, guest.active, guest.folders);
       emit('cm:maps-changed', { reason: 'logout' });
     }
     setStatus('local');
@@ -581,8 +638,8 @@
 
   function attachStore(store) {
     state.store = store;
-    store.onMapChanged = () => schedulePush();
-    store.onMapDeleted = () => schedulePush(400);
+    store.onMapChanged = (map) => schedulePush(store.meta?.foldersDirty || !map ? 150 : PUSH_DELAY_MS);
+    store.onMapDeleted = () => schedulePush(300);
   }
 
   function init(store) {

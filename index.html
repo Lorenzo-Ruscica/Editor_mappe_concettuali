@@ -8,14 +8,112 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="app">
+<!-- ============ HOME / DASHBOARD MENU ============ -->
+<div id="home-screen">
+  <header class="home-header">
+    <div class="home-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 32 32" width="30" height="30"><rect x="10" y="2" width="12" height="8" rx="3" fill="#1e3a8a"/><rect x="1" y="22" width="12" height="8" rx="3" fill="#f59e0b"/><rect x="19" y="22" width="12" height="8" rx="3" fill="#10b981"/><path d="M16 10v5M7 22v-4h18v4" stroke="#64748b" stroke-width="2" fill="none"/></svg>
+      </div>
+      <div>
+        <div class="home-title">Mappe Concettuali</div>
+        <div class="home-sub">Le tue mappe organizzate in cartelle e sincronizzate nel cloud</div>
+      </div>
+    </div>
+
+    <div class="home-search-wrap">
+      <span data-icon="search" class="home-search-ic"></span>
+      <input type="search" id="home-search" placeholder="Cerca una mappa per titolo…" autocomplete="off">
+    </div>
+
+    <div class="home-top-actions">
+      <button type="button" class="btn" id="home-btn-import-file" data-icon="upload"><span>Importa file</span></button>
+      <button type="button" class="btn" id="home-btn-import-text" data-icon="wand"><span>Crea da testo</span></button>
+      <button type="button" class="btn primary" id="home-btn-create" data-icon="plus"><span>Crea mappa</span></button>
+    </div>
+  </header>
+
+  <div class="home-body">
+    <!-- Barra laterale del menu: Account + Cartelle -->
+    <aside class="home-sidebar">
+      <div class="home-acc-card" id="home-acc-card">
+        <div class="hac-top">
+          <div class="hac-avatar" id="home-acc-avatar">
+            <span data-icon="user"></span>
+          </div>
+          <div class="hac-meta">
+            <div class="hac-name" id="home-acc-name">Ospite</div>
+            <div class="hac-email muted" id="home-acc-email">Modalità locale</div>
+          </div>
+        </div>
+        <div class="hac-status" id="home-acc-status">
+          <span class="sbc-dot" id="home-acc-dot"></span>
+          <span id="home-acc-status-text">Accedi per salvare le mappe online</span>
+        </div>
+        <div class="hac-actions">
+          <button type="button" class="btn primary small block" id="home-acc-btn">Accedi / Registrati</button>
+          <button type="button" class="btn small" id="home-sync-btn" data-icon="refresh" title="Sincronizza ora" hidden></button>
+        </div>
+      </div>
+
+      <div class="home-folders-sec">
+        <div class="hf-head">
+          <span>Cartelle</span>
+          <button type="button" class="btn small" id="home-btn-new-folder" data-icon="folderPlus"><span>Nuova</span></button>
+        </div>
+
+        <form id="home-new-folder-form" class="hf-new-form" hidden>
+          <input type="text" class="pp-input" id="home-new-folder-name" placeholder="Nome cartella (es. Storia)" maxlength="60" autocomplete="off">
+          <div class="hf-new-row">
+            <div class="hf-colors" id="home-new-folder-colors">
+              <button type="button" class="hf-col active" data-color="#2563eb" style="background:#2563eb"></button>
+              <button type="button" class="hf-col" data-color="#10b981" style="background:#10b981"></button>
+              <button type="button" class="hf-col" data-color="#f59e0b" style="background:#f59e0b"></button>
+              <button type="button" class="hf-col" data-color="#ef4444" style="background:#ef4444"></button>
+              <button type="button" class="hf-col" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+              <button type="button" class="hf-col" data-color="#ec4899" style="background:#ec4899"></button>
+            </div>
+            <div class="hf-new-btns">
+              <button type="submit" class="btn primary small">Crea</button>
+              <button type="button" class="btn small" id="home-cancel-folder">Annulla</button>
+            </div>
+          </div>
+        </form>
+
+        <div id="home-folder-list" class="hf-list"></div>
+      </div>
+    </aside>
+
+    <!-- Area principale: Griglia delle mappe -->
+    <main class="home-main">
+      <div class="mobile-readonly-banner" id="mobile-readonly-banner">
+        <span data-icon="help" class="mrb-ic"></span>
+        <span><b>Versione mobile:</b> sfoglia le cartelle e scarica le tue mappe. Per creare o modificare mappe accedi da computer.</span>
+      </div>
+
+      <div class="home-main-bar">
+        <div class="hmb-left">
+          <h1 id="home-view-title">Tutte le mappe</h1>
+          <span class="hmb-count" id="home-view-count">0 mappe</span>
+        </div>
+        <div class="hmb-right" id="home-folder-actions" hidden>
+          <button type="button" class="btn small" id="home-rename-folder" data-icon="edit"><span>Rinomina cartella</span></button>
+          <button type="button" class="btn small danger" id="home-delete-folder" data-icon="trash"><span>Elimina cartella</span></button>
+        </div>
+      </div>
+
+      <div id="home-map-grid" class="home-map-grid"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ EDITOR VIEW ============ -->
+<div id="app" hidden>
   <!-- ============ TOOLBAR ============ -->
   <header id="toolbar">
     <div class="tb-group">
-      <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Le mie mappe"></button>
-      <div class="brand" title="Mappe Concettuali">
-        <svg viewBox="0 0 32 32" width="26" height="26"><rect x="10" y="2" width="12" height="8" rx="3" fill="#1e3a8a"/><rect x="1" y="22" width="12" height="8" rx="3" fill="#f59e0b"/><rect x="19" y="22" width="12" height="8" rx="3" fill="#10b981"/><path d="M16 10v5M7 22v-4h18v4" stroke="#64748b" stroke-width="2" fill="none"/></svg>
-      </div>
+      <button class="tool-btn home-back-btn" id="btn-home" data-icon="grid" title="Torna al menu principale delle mappe"><span>Menu</span></button>
+      <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Elenco rapido mappe"></button>
       <input id="map-title" type="text" spellcheck="false" autocomplete="off" aria-label="Titolo della mappa">
       <span id="save-state" class="save-state">Salvato</span>
     </div>
@@ -48,18 +146,20 @@
       <button class="icon-btn" id="btn-fullscreen" data-icon="fullscreen" title="Schermo intero (F11)"></button>
     </div>
     <div class="tb-spacer"></div>
-    <div class="tb-group">
+    <div class="tb-group tb-right">
       <button class="tool-btn" id="btn-import" data-icon="text" title="Crea la mappa da un testo / scaletta"><span>Da testo</span></button>
       <button class="icon-btn" id="btn-speak" data-icon="volume" title="Leggi ad alta voce"></button>
       <button class="icon-btn" id="btn-help" data-icon="help" title="Guida e scorciatoie"></button>
       <button class="icon-btn" id="btn-props" data-icon="sliders" title="Mostra/nascondi pannello proprietà"></button>
+      <div class="tb-sep"></div>
       <button class="tool-btn auth-btn" id="btn-auth" title="Account e salvataggio online">
         <span class="auth-dot" id="auth-dot"></span>
         <span class="auth-avatar" id="auth-avatar" hidden></span>
         <span data-icon="user" id="auth-icon"></span>
         <span id="auth-label">Accedi</span>
       </button>
-      <button class="btn primary" id="btn-export" data-icon="download" title="Scarica PDF / Stampa (Ctrl+P)"><span>PDF / Stampa</span></button>
+      <button class="tool-btn" id="btn-quick-pdf" data-icon="download" title="Scarica subito in PDF (Ctrl+S)"><span>Scarica</span></button>
+      <button class="btn primary" id="btn-export" data-icon="printer" title="Opzioni di scaricamento e stampa (Ctrl+P)"><span>PDF / Stampa</span></button>
     </div>
   </header>
 
@@ -190,6 +290,10 @@ Il sistema solare
           <div class="exp-row">
             <button class="btn small" id="exp-png" data-icon="image"><span>Immagine PNG</span></button>
             <button class="btn small" id="exp-svg" data-icon="image"><span>Vettoriale SVG</span></button>
+          </div>
+          <div class="exp-row">
+            <button class="btn small" id="exp-json" data-icon="save"><span>File .json</span></button>
+            <button class="btn small" id="exp-txt" data-icon="text"><span>Scaletta .txt</span></button>
           </div>
         </div>
       </div>
@@ -349,6 +453,28 @@ Il sistema solare
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: DIALOGO INTERNO (CONFERMA / RINOMINA) ============ -->
+<div class="modal-bg" id="modal-dialog" hidden>
+  <div class="modal dialog-modal">
+    <div class="modal-h">
+      <h2 id="dlg-title">Conferma</h2>
+      <button type="button" class="icon-btn" id="dlg-close" data-icon="x" title="Chiudi"></button>
+    </div>
+    <form id="dlg-form">
+      <div class="modal-b">
+        <p id="dlg-msg" class="dlg-msg"></p>
+        <div id="dlg-input-wrap" hidden>
+          <input type="text" class="pp-input" id="dlg-input" maxlength="120" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-f">
+        <button type="button" class="btn" id="dlg-cancel">Annulla</button>
+        <button type="submit" class="btn primary" id="dlg-ok">Conferma</button>
+      </div>
+    </form>
   </div>
 </div>
 

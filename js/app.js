@@ -84,6 +84,7 @@
     btnSpeak: document.getElementById('btn-speak'),
     btnHelp: document.getElementById('btn-help'),
     btnProps: document.getElementById('btn-props'),
+    btnQuickPdf: document.getElementById('btn-quick-pdf'),
     btnExport: document.getElementById('btn-export'),
 
     sidebar: document.getElementById('sidebar'),
@@ -125,6 +126,8 @@
     expPrint: document.getElementById('exp-print'),
     expPng: document.getElementById('exp-png'),
     expSvg: document.getElementById('exp-svg'),
+    expJson: document.getElementById('exp-json'),
+    expTxt: document.getElementById('exp-txt'),
 
     modalHelp: document.getElementById('modal-help'),
     fileOpen: document.getElementById('file-open'),
@@ -176,11 +179,158 @@
     profSyncNow: document.getElementById('prof-sync-now'),
     profChangePass: document.getElementById('prof-change-pass'),
     profLogout: document.getElementById('prof-logout'),
-    profDeleteAccount: document.getElementById('prof-delete-account')
+    profDeleteAccount: document.getElementById('prof-delete-account'),
+
+    // Home / Dashboard Menu
+    appRoot: document.getElementById('app'),
+    homeScreen: document.getElementById('home-screen'),
+    btnHome: document.getElementById('btn-home'),
+    homeSearch: document.getElementById('home-search'),
+    homeBtnImportFile: document.getElementById('home-btn-import-file'),
+    homeBtnImportText: document.getElementById('home-btn-import-text'),
+    homeBtnCreate: document.getElementById('home-btn-create'),
+    homeAccAvatar: document.getElementById('home-acc-avatar'),
+    homeAccName: document.getElementById('home-acc-name'),
+    homeAccEmail: document.getElementById('home-acc-email'),
+    homeAccDot: document.getElementById('home-acc-dot'),
+    homeAccStatusText: document.getElementById('home-acc-status-text'),
+    homeAccBtn: document.getElementById('home-acc-btn'),
+    homeSyncBtn: document.getElementById('home-sync-btn'),
+    homeBtnNewFolder: document.getElementById('home-btn-new-folder'),
+    homeNewFolderForm: document.getElementById('home-new-folder-form'),
+    homeNewFolderName: document.getElementById('home-new-folder-name'),
+    homeNewFolderColors: document.getElementById('home-new-folder-colors'),
+    homeCancelFolder: document.getElementById('home-cancel-folder'),
+    homeFolderList: document.getElementById('home-folder-list'),
+    homeViewTitle: document.getElementById('home-view-title'),
+    homeViewCount: document.getElementById('home-view-count'),
+    homeFolderActions: document.getElementById('home-folder-actions'),
+    homeRenameFolder: document.getElementById('home-rename-folder'),
+    homeDeleteFolder: document.getElementById('home-delete-folder'),
+    homeMapGrid: document.getElementById('home-map-grid'),
+
+    // Internal Confirm / Prompt Dialog
+    modalDialog: document.getElementById('modal-dialog'),
+    dlgTitle: document.getElementById('dlg-title'),
+    dlgClose: document.getElementById('dlg-close'),
+    dlgForm: document.getElementById('dlg-form'),
+    dlgMsg: document.getElementById('dlg-msg'),
+    dlgInputWrap: document.getElementById('dlg-input-wrap'),
+    dlgInput: document.getElementById('dlg-input'),
+    dlgCancel: document.getElementById('dlg-cancel'),
+    dlgOk: document.getElementById('dlg-ok')
   };
 
   let authTab = 'login'; // 'login' | 'signup' | 'reset'
   let authRecoveryMode = false;
+  let activeFolderFilter = 'all'; // 'all' | <folder.id>
+  let newFolderColor = '#2563eb';
+  let draggedMapCardId = null;
+  let activeDialogResolve = null;
+  let exportTargetMapId = null;
+
+  function isMobileMode() {
+    return (
+      window.matchMedia('(max-width: 820px)').matches ||
+      window.matchMedia('(pointer: coarse) and (max-width: 1024px)').matches ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '')
+    );
+  }
+
+  function syncMobileMode() {
+    const mobile = isMobileMode();
+    document.body.classList.toggle('is-mobile', mobile);
+    if (mobile && dom.appRoot && !dom.appRoot.hidden) {
+      showHomeScreen();
+    }
+    return mobile;
+  }
+
+  function getExportTargetMap() {
+    if (exportTargetMapId) {
+      const found = store.maps.find((m) => m.id === exportTargetMapId);
+      if (found) return found;
+    }
+    return store.getMap();
+  }
+
+  function quickDownloadMap(mapId = null) {
+    const target = mapId
+      ? store.maps.find((m) => m.id === mapId)
+      : getExportTargetMap();
+    if (!target) {
+      showToast('Nessuna mappa disponibile da scaricare.', 'error');
+      return;
+    }
+    exportPdf(target, exportOpts);
+  }
+
+  function closeInternalDialog(result) {
+    if (dom.modalDialog) dom.modalDialog.hidden = true;
+    if (activeDialogResolve) {
+      const fn = activeDialogResolve;
+      activeDialogResolve = null;
+      fn(result);
+    }
+  }
+
+  function openConfirmDialog({ title = 'Conferma', message = '', confirmText = 'Conferma', danger = false } = {}) {
+    if (activeDialogResolve) closeInternalDialog(false);
+    return new Promise((resolve) => {
+      activeDialogResolve = resolve;
+      if (dom.dlgTitle) dom.dlgTitle.textContent = title;
+      if (dom.dlgMsg) {
+        dom.dlgMsg.textContent = message;
+        dom.dlgMsg.hidden = !message;
+      }
+      if (dom.dlgInputWrap) dom.dlgInputWrap.hidden = true;
+      if (dom.dlgOk) {
+        dom.dlgOk.textContent = confirmText;
+        dom.dlgOk.className = danger ? 'btn danger-solid' : 'btn primary';
+      }
+      if (dom.modalDialog) dom.modalDialog.hidden = false;
+      dom.dlgOk?.focus();
+    });
+  }
+
+  function openPromptDialog({
+    title = 'Rinomina',
+    message = '',
+    defaultValue = '',
+    placeholder = '',
+    confirmText = 'Salva'
+  } = {}) {
+    if (activeDialogResolve) closeInternalDialog(null);
+    return new Promise((resolve) => {
+      activeDialogResolve = (ok) => {
+        if (!ok) {
+          resolve(null);
+          return;
+        }
+        const val = (dom.dlgInput?.value || '').trim();
+        resolve(val || null);
+      };
+      if (dom.dlgTitle) dom.dlgTitle.textContent = title;
+      if (dom.dlgMsg) {
+        dom.dlgMsg.textContent = message;
+        dom.dlgMsg.hidden = !message;
+      }
+      if (dom.dlgInputWrap) dom.dlgInputWrap.hidden = false;
+      if (dom.dlgInput) {
+        dom.dlgInput.value = defaultValue || '';
+        dom.dlgInput.placeholder = placeholder || '';
+      }
+      if (dom.dlgOk) {
+        dom.dlgOk.textContent = confirmText;
+        dom.dlgOk.className = 'btn primary';
+      }
+      if (dom.modalDialog) dom.modalDialog.hidden = false;
+      setTimeout(() => {
+        dom.dlgInput?.focus();
+        dom.dlgInput?.select();
+      }, 20);
+    });
+  }
 
   function init() {
     hydrateIcons(document);
@@ -203,21 +353,548 @@
     };
 
     const map = store.getMap();
-    selectedId = map.root.id;
+    selectedId = map ? map.root.id : null;
 
     bindToolbarEvents();
     bindCanvasEvents();
     bindKeyboardEvents();
     bindModalEvents();
     bindCloudEvents();
+    bindHomeEvents();
 
-    refreshAll(true);
+    syncMobileMode();
+    window.addEventListener('resize', debounce(() => {
+      const wasMobile = document.body.classList.contains('is-mobile');
+      const nowMobile = syncMobileMode();
+      if (wasMobile !== nowMobile) {
+        renderHomeScreen();
+      }
+    }, 120));
+
+    // All'avvio mostriamo sempre il menu principale (Home / Dashboard)
+    showHomeScreen();
 
     // Login + salvataggio online (Supabase). Se non configurato l'app resta solo locale.
     if (window.CMCloud) {
-      window.CMCloud.init(store).then(() => updateAuthUI());
+      window.CMCloud.init(store).then(() => {
+        updateAuthUI();
+        renderHomeScreen();
+      });
     }
     updateAuthUI();
+  }
+
+  // =========================================================================
+  // HOME / DASHBOARD MENU (ACCOUNT, CARTELLE E MAPPE)
+  // =========================================================================
+
+  function currentRealFolderId() {
+    if (activeFolderFilter !== 'all') {
+      if (store.folders.some((f) => f.id === activeFolderFilter)) {
+        return activeFolderFilter;
+      }
+    }
+    return '';
+  }
+
+  function showHomeScreen() {
+    commitInlineEditor();
+    if (dom.appRoot) dom.appRoot.hidden = true;
+    if (dom.homeScreen) dom.homeScreen.hidden = false;
+    renderHomeScreen();
+    updateAuthUI();
+  }
+
+  function openMapInEditor(mapId) {
+    if (isMobileMode()) {
+      showToast('La creazione e modifica delle mappe è disponibile solo da computer.');
+      return;
+    }
+    store.setActiveMap(mapId);
+    const map = store.getMap();
+    if (!map) return;
+    selectedId = map.root.id;
+    selectedLinkId = null;
+    if (dom.homeScreen) dom.homeScreen.hidden = true;
+    if (dom.appRoot) dom.appRoot.hidden = false;
+    refreshAll(true);
+  }
+
+  function renderHomeScreen() {
+    if (!dom.homeScreen) return;
+    const mobile = syncMobileMode();
+
+    // Se la cartella selezionata non esiste più, torniamo a "Tutte le mappe"
+    if (
+      activeFolderFilter !== 'all' &&
+      !store.folders.some((f) => f.id === activeFolderFilter)
+    ) {
+      activeFolderFilter = 'all';
+    }
+
+    const folderById = new Map(store.folders.map((f) => [f.id, f]));
+    const totalCount = store.maps.length;
+
+    // 1. Elenco cartelle nella sidebar ("Tutte le mappe" + cartelle create dall'utente)
+    const folderItems = [
+      `
+        <div class="hf-item${activeFolderFilter === 'all' ? ' active' : ''}" data-folder-filter="all" data-drop-folder="">
+          <span class="hf-ic">${svgIcon('grid', 17)}</span>
+          <span class="hf-name">Tutte le mappe</span>
+          <span class="hf-badge">${totalCount}</span>
+        </div>
+      `
+    ];
+
+    for (const f of store.folders) {
+      const cnt = store.maps.filter((m) => m.folderId === f.id).length;
+      const isAct = activeFolderFilter === f.id ? ' active' : '';
+      folderItems.push(`
+        <div class="hf-item${isAct}" data-folder-filter="${escapeHtml(f.id)}" data-drop-folder="${escapeHtml(f.id)}">
+          <span class="hf-ic" style="color:${escapeHtml(f.color)}">${svgIcon('folder', 17)}</span>
+          <span class="hf-name">${escapeHtml(f.name)}</span>
+          <span class="hf-badge">${cnt}</span>
+        </div>
+      `);
+    }
+
+    if (dom.homeFolderList) {
+      dom.homeFolderList.innerHTML = folderItems.join('');
+    }
+
+    // 2. Intestazione vista corrente e pulsanti gestione cartella
+    const activeFolderObj = folderById.get(activeFolderFilter) || null;
+    if (dom.homeViewTitle) {
+      dom.homeViewTitle.textContent =
+        activeFolderFilter === 'all' ? 'Tutte le mappe' : activeFolderObj?.name || 'Cartella';
+    }
+    if (dom.homeFolderActions) {
+      dom.homeFolderActions.hidden = !activeFolderObj;
+    }
+
+    // 3. Filtra mappe per cartella e ricerca
+    const query = (dom.homeSearch?.value || '').trim().toLowerCase();
+    const filtered = store.maps.filter((m) => {
+      if (activeFolderFilter !== 'all') {
+        if (m.folderId !== activeFolderFilter) return false;
+      }
+      if (query) {
+        const t = (m.title || '').toLowerCase();
+        if (!t.includes(query)) return false;
+      }
+      return true;
+    });
+
+    if (dom.homeViewCount) {
+      dom.homeViewCount.textContent = `${filtered.length} mapp${filtered.length === 1 ? 'a' : 'e'}`;
+    }
+
+    // 4. Griglia mappe o stato vuoto
+    if (!dom.homeMapGrid) return;
+
+    if (filtered.length === 0) {
+      const isSearch = Boolean(query);
+      const isLoggedIn = Boolean(window.CMCloud && window.CMCloud.isLoggedIn());
+      if (mobile) {
+        dom.homeMapGrid.innerHTML = `
+          <div class="home-empty">
+            <div class="he-icon">${svgIcon('folder', 28)}</div>
+            <h2>${
+              isSearch
+                ? 'Nessuna mappa trovata'
+                : activeFolderObj
+                ? `La cartella "${escapeHtml(activeFolderObj.name)}" è vuota`
+                : 'Nessuna mappa disponibile'
+            }</h2>
+            <p>${
+              isSearch
+                ? 'Prova a cercare con un altro termine oppure azzera la barra di ricerca.'
+                : isLoggedIn
+                ? 'La creazione di nuove mappe è disponibile solo da computer. Quando crei una mappa dal PC la troverai sincronizzata qui pronta da scaricare.'
+                : 'Da smartphone puoi consultare e scaricare le tue mappe. Accedi al tuo account per sincronizzare le mappe che hai creato da computer.'
+            }</p>
+            ${
+              !isSearch && !isLoggedIn
+                ? `<div class="he-btns">
+                     <button type="button" class="btn primary" data-empty-login>${svgIcon('user', 17)}<span>Accedi all'account</span></button>
+                   </div>`
+                : ''
+            }
+          </div>
+        `;
+      } else {
+        dom.homeMapGrid.innerHTML = `
+          <div class="home-empty">
+            <div class="he-icon">${svgIcon('folderPlus', 28)}</div>
+            <h2>${
+              isSearch
+                ? 'Nessuna mappa trovata'
+                : activeFolderObj
+                ? `La cartella "${escapeHtml(activeFolderObj.name)}" è vuota`
+                : 'Non hai ancora creato nessuna mappa'
+            }</h2>
+            <p>${
+              isSearch
+                ? 'Prova a cercare con un altro termine oppure azzera la barra di ricerca.'
+                : 'L\'editor non crea mappe da solo: clicca qui sotto quando vuoi iniziare una nuova mappa concettuale o generarla da un testo.'
+            }</p>
+            <div class="he-btns">
+              <button type="button" class="btn primary" data-empty-create>${svgIcon('plus', 17)}<span>Crea nuova mappa</span></button>
+              <button type="button" class="btn" data-empty-import-text>${svgIcon('wand', 17)}<span>Crea da testo</span></button>
+            </div>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    const folderOptionsHtml = (selectedFolderId) => {
+      const opts = [
+        `<option value=""${!selectedFolderId || !folderById.has(selectedFolderId) ? ' selected' : ''}>Nessuna</option>`
+      ];
+      for (const f of store.folders) {
+        const sel = f.id === selectedFolderId ? ' selected' : '';
+        opts.push(`<option value="${escapeHtml(f.id)}"${sel}>${escapeHtml(f.name)}</option>`);
+      }
+      return opts.join('');
+    };
+
+    dom.homeMapGrid.innerHTML = filtered
+      .map((m) => {
+        const count = countNodesInTree(m.root);
+        const fObj = m.folderId ? folderById.get(m.folderId) : null;
+        const theme = getTheme(m.style?.theme, false);
+        let previewInner = '';
+        let viewBoxAttr = '0 0 400 240';
+        try {
+          const built = buildStandaloneSvg(m, { transparentBg: true });
+          viewBoxAttr = `${built.minX} ${built.minY} ${built.width} ${built.height}`;
+          previewInner = built.svg.replace(/^<svg[^>]*>|<\/svg>$/g, '');
+        } catch {}
+
+        const pillHtml = fObj
+          ? `<div class="mc-folder-pill"><span class="mc-folder-dot" style="background:${escapeHtml(fObj.color)}"></span><span>${escapeHtml(fObj.name)}</span></div>`
+          : '';
+
+        const primaryCardActionAttr = mobile
+          ? `data-export-map="${escapeHtml(m.id)}"`
+          : `data-open-map="${escapeHtml(m.id)}"`;
+
+        return `
+          <article class="map-card" draggable="${!mobile}" data-card-map-id="${escapeHtml(m.id)}">
+            <div class="mc-preview" ${primaryCardActionAttr} style="background:${escapeHtml(theme.bg)}">
+              ${pillHtml}
+              <svg viewBox="${viewBoxAttr}" preserveAspectRatio="xMidYMid meet">${previewInner}</svg>
+            </div>
+            <div class="mc-body">
+              <div class="mc-title" ${primaryCardActionAttr} title="${escapeHtml(m.title)}">${escapeHtml(m.title || 'Senza titolo')}</div>
+              <div class="mc-meta">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
+              <div class="mc-folder-row">
+                <label>Cartella:</label>
+                <select class="mc-folder-select" data-map-folder="${escapeHtml(m.id)}">
+                  ${folderOptionsHtml(m.folderId)}
+                </select>
+              </div>
+            </div>
+            <div class="mc-actions">
+              <button type="button" class="btn primary small mc-desktop-only" data-open-map="${escapeHtml(m.id)}">Apri</button>
+              <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
+              <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
+              <button type="button" class="icon-btn mc-desktop-only" data-dup-map="${escapeHtml(m.id)}" title="Duplica mappa">${svgIcon('copy', 16)}</button>
+              <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Elimina mappa">${svgIcon('trash', 16)}</button>
+            </div>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  function bindHomeEvents() {
+    dom.btnHome?.addEventListener('click', () => showHomeScreen());
+
+    dom.homeSearch?.addEventListener('input', () => renderHomeScreen());
+
+    dom.homeBtnCreate?.addEventListener('click', () => {
+      if (isMobileMode()) {
+        showToast('La creazione di nuove mappe è disponibile solo da computer.');
+        return;
+      }
+      const m = store.createNewMap(null, currentRealFolderId());
+      openMapInEditor(m.id);
+      showToast('Nuova mappa creata!');
+    });
+
+    dom.homeBtnImportText?.addEventListener('click', () => {
+      if (isMobileMode()) {
+        showToast('La creazione di nuove mappe è disponibile solo da computer.');
+        return;
+      }
+      openImportModal();
+    });
+
+    dom.homeBtnImportFile?.addEventListener('click', () => {
+      if (isMobileMode()) {
+        showToast('L\'importazione di mappe è disponibile solo da computer.');
+        return;
+      }
+      dom.fileOpen.value = '';
+      dom.fileOpen.click();
+    });
+
+    dom.homeAccBtn?.addEventListener('click', () => openAuthModal());
+
+    dom.homeSyncBtn?.addEventListener('click', async () => {
+      if (!window.CMCloud) return;
+      dom.homeSyncBtn.disabled = true;
+      const ok = await window.CMCloud.syncNow();
+      dom.homeSyncBtn.disabled = false;
+      renderHomeScreen();
+      updateAuthUI();
+      if (ok) showToast('Mappe sincronizzate col cloud!', 'ok');
+    });
+
+    // Creazione nuova cartella
+    dom.homeBtnNewFolder?.addEventListener('click', () => {
+      if (!dom.homeNewFolderForm) return;
+      dom.homeNewFolderForm.hidden = !dom.homeNewFolderForm.hidden;
+      if (!dom.homeNewFolderForm.hidden) {
+        dom.homeNewFolderName.value = '';
+        dom.homeNewFolderName.focus();
+      }
+    });
+
+    dom.homeCancelFolder?.addEventListener('click', () => {
+      if (dom.homeNewFolderForm) dom.homeNewFolderForm.hidden = true;
+    });
+
+    dom.homeNewFolderColors?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-color]');
+      if (!btn) return;
+      newFolderColor = btn.getAttribute('data-color') || '#2563eb';
+      dom.homeNewFolderColors.querySelectorAll('.hf-col').forEach((b) => {
+        b.classList.toggle('active', b === btn);
+      });
+    });
+
+    dom.homeNewFolderForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = dom.homeNewFolderName?.value.trim() || '';
+      if (!name) {
+        showToast('Inserisci un nome per la cartella.', 'error');
+        return;
+      }
+      const f = store.createFolder(name, newFolderColor);
+      if (f) {
+        activeFolderFilter = f.id;
+        dom.homeNewFolderForm.hidden = true;
+        dom.homeNewFolderName.value = '';
+        renderHomeScreen();
+        showToast(`Cartella "${f.name}" creata!`, 'ok');
+      }
+    });
+
+    // Selezione cartella e drag & drop di una mappa sopra una cartella
+    dom.homeFolderList?.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-folder-filter]');
+      if (!item) return;
+      activeFolderFilter = item.getAttribute('data-folder-filter') || 'all';
+      renderHomeScreen();
+    });
+
+    dom.homeFolderList?.addEventListener('dragover', (e) => {
+      const dropTarget = e.target.closest('[data-drop-folder]');
+      if (!dropTarget || !draggedMapCardId) return;
+      e.preventDefault();
+      dropTarget.classList.add('drop-over');
+    });
+
+    dom.homeFolderList?.addEventListener('dragleave', (e) => {
+      const dropTarget = e.target.closest('[data-drop-folder]');
+      if (dropTarget) dropTarget.classList.remove('drop-over');
+    });
+
+    dom.homeFolderList?.addEventListener('drop', (e) => {
+      const dropTarget = e.target.closest('[data-drop-folder]');
+      if (!dropTarget || !draggedMapCardId) return;
+      e.preventDefault();
+      dropTarget.classList.remove('drop-over');
+      const folderId = dropTarget.getAttribute('data-drop-folder') || '';
+      store.setMapFolder(draggedMapCardId, folderId);
+      draggedMapCardId = null;
+      renderHomeScreen();
+      showToast(folderId ? 'Mappa spostata nella cartella!' : 'Mappa rimossa dalla cartella.');
+    });
+
+    // Dialogo interno (conferma / rinomina)
+    dom.dlgClose?.addEventListener('click', () => closeInternalDialog(false));
+    dom.dlgCancel?.addEventListener('click', () => closeInternalDialog(false));
+    dom.modalDialog?.addEventListener('click', (e) => {
+      if (e.target === dom.modalDialog) closeInternalDialog(false);
+    });
+    dom.dlgForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      closeInternalDialog(true);
+    });
+
+    // Rinomina / Elimina cartella selezionata
+    dom.homeRenameFolder?.addEventListener('click', async () => {
+      const folderId = currentRealFolderId();
+      const f = store.folders.find((x) => x.id === folderId);
+      if (!f) return;
+      const next = await openPromptDialog({
+        title: 'Rinomina cartella',
+        message: 'Inserisci il nuovo nome della cartella:',
+        defaultValue: f.name,
+        confirmText: 'Salva'
+      });
+      if (next && next.trim()) {
+        store.renameFolder(f.id, next.trim());
+        renderHomeScreen();
+        showToast('Cartella rinominata.');
+      }
+    });
+
+    dom.homeDeleteFolder?.addEventListener('click', async () => {
+      const folderId = currentRealFolderId();
+      const f = store.folders.find((x) => x.id === folderId);
+      if (!f) return;
+      const ok = await openConfirmDialog({
+        title: 'Elimina cartella',
+        message: `Vuoi eliminare la cartella "${f.name}"? Le mappe al suo interno non verranno cancellate ma rimarranno visibili in "Tutte le mappe".`,
+        confirmText: 'Elimina cartella',
+        danger: true
+      });
+      if (!ok) return;
+      store.deleteFolder(f.id);
+      activeFolderFilter = 'all';
+      renderHomeScreen();
+      showToast('Cartella eliminata.');
+    });
+
+    // Eventi sulle card delle mappe nella griglia
+    dom.homeMapGrid?.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-empty-login]')) {
+        openAuthModal('login');
+        return;
+      }
+      if (e.target.closest('[data-empty-create]')) {
+        if (isMobileMode()) {
+          showToast('La creazione di mappe è disponibile solo da computer.');
+          return;
+        }
+        const m = store.createNewMap(null, currentRealFolderId());
+        openMapInEditor(m.id);
+        showToast('Nuova mappa creata!');
+        return;
+      }
+      if (e.target.closest('[data-empty-import-text]')) {
+        if (isMobileMode()) {
+          showToast('La creazione di mappe è disponibile solo da computer.');
+          return;
+        }
+        openImportModal();
+        return;
+      }
+
+      const quickDlBtn = e.target.closest('[data-quick-download]');
+      if (quickDlBtn) {
+        e.stopPropagation();
+        quickDownloadMap(quickDlBtn.getAttribute('data-quick-download'));
+        return;
+      }
+
+      const expBtn = e.target.closest('[data-export-map]');
+      if (expBtn) {
+        e.stopPropagation();
+        openExportModal(expBtn.getAttribute('data-export-map'));
+        return;
+      }
+
+      const openEl = e.target.closest('[data-open-map]');
+      if (openEl) {
+        const targetId = openEl.getAttribute('data-open-map');
+        if (isMobileMode()) {
+          openExportModal(targetId);
+          return;
+        }
+        openMapInEditor(targetId);
+        return;
+      }
+
+      const renBtn = e.target.closest('[data-rename-map]');
+      if (renBtn) {
+        const id = renBtn.getAttribute('data-rename-map');
+        const m = store.maps.find((x) => x.id === id);
+        if (!m) return;
+        const next = await openPromptDialog({
+          title: 'Rinomina mappa',
+          message: 'Inserisci il nuovo titolo della mappa:',
+          defaultValue: m.title,
+          confirmText: 'Salva'
+        });
+        if (next && next.trim()) {
+          store.renameMap(id, next.trim());
+          renderHomeScreen();
+          renderSidebarList();
+          showToast('Mappa rinominata!');
+        }
+        return;
+      }
+
+      const dupBtn = e.target.closest('[data-dup-map]');
+      if (dupBtn) {
+        if (isMobileMode()) {
+          showToast('La creazione di mappe è disponibile solo da computer.');
+          return;
+        }
+        const id = dupBtn.getAttribute('data-dup-map');
+        const m = store.duplicateMap(id);
+        if (m) {
+          renderHomeScreen();
+          renderSidebarList();
+          showToast('Mappa duplicata!');
+        }
+        return;
+      }
+
+      const delBtn = e.target.closest('[data-del-map]');
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-del-map');
+        const m = store.maps.find((x) => x.id === id);
+        if (!m) return;
+        const ok = await openConfirmDialog({
+          title: 'Elimina mappa',
+          message: `Vuoi eliminare definitivamente la mappa "${m.title}"?`,
+          confirmText: 'Elimina',
+          danger: true
+        });
+        if (!ok) return;
+        store.deleteMap(id);
+        renderHomeScreen();
+        renderSidebarList();
+        showToast('Mappa eliminata.');
+      }
+    });
+
+    dom.homeMapGrid?.addEventListener('change', (e) => {
+      const sel = e.target.closest('[data-map-folder]');
+      if (!sel) return;
+      const mapId = sel.getAttribute('data-map-folder');
+      store.setMapFolder(mapId, sel.value);
+      renderHomeScreen();
+      showToast(sel.value ? 'Mappa spostata nella cartella!' : 'Mappa rimossa dalla cartella.');
+    });
+
+    dom.homeMapGrid?.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('[data-card-map-id]');
+      if (!card) return;
+      draggedMapCardId = card.getAttribute('data-card-map-id');
+    });
+
+    dom.homeMapGrid?.addEventListener('dragend', () => {
+      draggedMapCardId = null;
+      dom.homeFolderList?.querySelectorAll('.drop-over').forEach((el) => el.classList.remove('drop-over'));
+    });
   }
 
   // =========================================================================
@@ -322,6 +999,52 @@
         if (dom.sbcDot) dom.sbcDot.className = 'sbc-dot';
         if (dom.sbcText) dom.sbcText.textContent = 'Modalità locale';
         if (dom.sbcBtn) dom.sbcBtn.textContent = 'Cloud';
+      }
+    }
+
+    // 2b. Scheda Account nella schermata Home / Dashboard
+    if (dom.homeAccName) {
+      if (isLoggedIn && user) {
+        if (dom.homeAccAvatar) dom.homeAccAvatar.textContent = initial;
+        dom.homeAccName.textContent = displayName || 'Account attivo';
+        if (dom.homeAccEmail) dom.homeAccEmail.textContent = user.email || '';
+        const dotCls =
+          sync.status === 'syncing'
+            ? 'syncing'
+            : sync.status === 'error'
+            ? 'error'
+            : sync.status === 'offline'
+            ? 'offline'
+            : 'ok';
+        if (dom.homeAccDot) dom.homeAccDot.className = `sbc-dot ${dotCls}`;
+        if (dom.homeAccStatusText) {
+          dom.homeAccStatusText.textContent =
+            sync.status === 'syncing'
+              ? 'Sincronizzazione in corso…'
+              : sync.status === 'error'
+              ? 'Errore sincronizzazione cloud'
+              : sync.status === 'offline'
+              ? 'Offline · salvato sul dispositivo'
+              : 'Mappe sincronizzate online';
+        }
+        if (dom.homeAccBtn) {
+          dom.homeAccBtn.textContent = 'Gestisci account';
+          dom.homeAccBtn.className = 'btn small block';
+        }
+        if (dom.homeSyncBtn) dom.homeSyncBtn.hidden = false;
+      } else {
+        if (dom.homeAccAvatar) dom.homeAccAvatar.innerHTML = svgIcon('user', 18);
+        dom.homeAccName.textContent = 'Ospite';
+        if (dom.homeAccEmail) dom.homeAccEmail.textContent = 'Non connesso';
+        if (dom.homeAccDot) dom.homeAccDot.className = 'sbc-dot';
+        if (dom.homeAccStatusText) {
+          dom.homeAccStatusText.textContent = 'Accedi per salvare le mappe online';
+        }
+        if (dom.homeAccBtn) {
+          dom.homeAccBtn.textContent = 'Accedi / Registrati';
+          dom.homeAccBtn.className = 'btn primary small block';
+        }
+        if (dom.homeSyncBtn) dom.homeSyncBtn.hidden = true;
       }
     }
 
@@ -589,9 +1312,12 @@
       dom.profLogout.disabled = true;
       let res = await window.CMCloud.signOut();
       if (!res.ok && res.unsynced) {
-        const confirmForce = window.confirm(
-          'Ci sono modifiche non ancora salvate online. Vuoi uscire comunque mantenendo una copia sul dispositivo?'
-        );
+        const confirmForce = await openConfirmDialog({
+          title: 'Modifiche non sincronizzate',
+          message: 'Ci sono modifiche non ancora salvate online. Vuoi uscire comunque mantenendo una copia sul dispositivo?',
+          confirmText: 'Esci comunque',
+          danger: true
+        });
         if (confirmForce) {
           res = await window.CMCloud.signOut({ force: true, keepLocalCopy: true });
         }
@@ -608,9 +1334,12 @@
     });
 
     dom.profDeleteAccount?.addEventListener('click', async () => {
-      const sure = window.confirm(
-        'Sei sicuro di voler eliminare definitivamente il tuo account e tutte le mappe salvate online? Questa operazione non può essere annullata.'
-      );
+      const sure = await openConfirmDialog({
+        title: 'Elimina account',
+        message: 'Sei sicuro di voler eliminare definitivamente il tuo account e tutte le mappe salvate online? Questa operazione non può essere annullata.',
+        confirmText: 'Elimina definitivamente',
+        danger: true
+      });
       if (!sure) return;
       dom.profDeleteAccount.disabled = true;
       const res = await window.CMCloud.deleteAccount();
@@ -648,30 +1377,39 @@
 
     window.addEventListener('cm:maps-changed', (e) => {
       const reason = e.detail?.reason || 'sync';
+      renderHomeScreen();
       const map = store.getMap();
-      if (!map) return;
+      if (!map) {
+        selectedId = null;
+        selectedLinkId = null;
+        showHomeScreen();
+        return;
+      }
       if (!selectedId || !findNode(map.root, selectedId)) {
         selectedId = map.root.id;
         selectedLinkId = null;
       }
 
       if (reason === 'sync') {
-        // Aggiornamento in background: non interrompiamo l'utente se sta scrivendo nella barra laterale
-        const typingInProps = dom.props.contains(document.activeElement);
-        renderCanvas();
-        renderToolbarState();
-        renderSidebarList();
-        updateStatusBar();
-        dom.mapTitle.value = map.title;
-        if (!typingInProps && !editSession) renderPropsPanel();
+        if (dom.appRoot && !dom.appRoot.hidden) {
+          const typingInProps = dom.props.contains(document.activeElement);
+          renderCanvas();
+          renderToolbarState();
+          renderSidebarList();
+          updateStatusBar();
+          dom.mapTitle.value = map.title;
+          if (!typingInProps && !editSession) renderPropsPanel();
+        }
         updateAuthUI();
         return;
       }
 
-      // Login / logout: cambiano completamente le mappe visibili
+      // Login / logout: aggiorniamo sia il menu sia l'editor se aperto
       editSession = null;
       dom.editor.className = '';
-      refreshAll(true);
+      if (dom.appRoot && !dom.appRoot.hidden) {
+        refreshAll(true);
+      }
       updateAuthUI();
     });
 
@@ -882,6 +1620,7 @@
             <div class="mi-t">${escapeHtml(m.title || 'Senza titolo')}</div>
             <div class="mi-d">${count} concetti · ${formatDate(m.updatedAt)}</div>
             <div class="mi-act">
+              <button type="button" data-map-dl="${m.id}" title="Scarica subito PDF">${svgIcon('download', 15)}</button>
               <button type="button" data-map-dup="${m.id}" title="Duplica mappa">${svgIcon('copy', 15)}</button>
               <button type="button" class="del" data-map-del="${m.id}" title="Elimina mappa">${svgIcon('trash', 15)}</button>
             </div>
@@ -1001,7 +1740,7 @@
                    <button type="button" class="btn small" id="pp-img-add">${svgIcon('image', 15)}<span>Cambia</span></button>
                    <button type="button" class="btn small danger" id="pp-img-del">${svgIcon('trash', 15)}<span>Rimuovi</span></button>
                  </div>`
-              : `<button type="button" class="btn small block" id="pp-img-add">${svgIcon('image', 15)}<span>Aggiungi immagine (o incolla Ctrl+V)</span></button>`
+              : `<button type="button" class="btn small block" id="pp-img-add">${svgIcon('image', 15)}<span>Aggiungi immagine (Ctrl+V)</span></button>`
           }
         </div>
       `);
@@ -1040,15 +1779,7 @@
           <button type="button" data-line="straight" class="${style.lineType === 'straight' ? 'active' : ''}">Dritti</button>
         </div>
 
-        <label class="toggle">
-          <input type="checkbox" id="pp-free-mode" ${style.freeMode ? 'checked' : ''}>
-          <span></span> Spostamento e ridimensionamento libero
-        </label>
-        ${
-          style.freeMode
-            ? `<button type="button" class="btn small block" id="pp-reset-free" style="margin:4px 0 8px">${svgIcon('refresh', 15)}<span>Riallinea e ripristina dimensioni</span></button>`
-            : ''
-        }
+        <button type="button" class="btn small block pp-reset-btn" id="pp-reset-free">${svgIcon('refresh', 15)}<span>Riallinea e ripristina dimensioni</span></button>
 
         <label class="toggle">
           <input type="checkbox" id="pp-arrows" ${style.arrows ? 'checked' : ''}>
@@ -1364,13 +2095,6 @@
         refreshAll(false);
       });
     });
-
-    const freeModeToggle = document.getElementById('pp-free-mode');
-    if (freeModeToggle) {
-      freeModeToggle.addEventListener('change', () => {
-        toggleFreeMode(freeModeToggle.checked);
-      });
-    }
 
     const resetFreeBtn = document.getElementById('pp-reset-free');
     if (resetFreeBtn) {
@@ -1936,19 +2660,33 @@
     dom.btnHelp.addEventListener('click', () => {
       dom.modalHelp.hidden = false;
     });
+    dom.btnQuickPdf?.addEventListener('click', () => {
+      commitInlineEditor();
+      quickDownloadMap();
+    });
     dom.btnExport.addEventListener('click', () => openExportModal());
 
     // Sidebar events
     dom.btnNew.addEventListener('click', () => {
+      if (isMobileMode()) {
+        showToast('La creazione di mappe è disponibile solo da computer.');
+        return;
+      }
       commitInlineEditor();
-      const m = store.createNewMap();
-      selectedId = m.root.id;
-      selectedLinkId = null;
-      refreshAll(true);
+      const m = store.createNewMap(null, currentRealFolderId());
+      openMapInEditor(m.id);
+      renderHomeScreen();
       showToast('Nuova mappa creata!');
     });
 
     dom.mapList.addEventListener('click', (e) => {
+      const dlBtn = e.target.closest('[data-map-dl]');
+      if (dlBtn) {
+        e.stopPropagation();
+        quickDownloadMap(dlBtn.getAttribute('data-map-dl'));
+        return;
+      }
+
       const dupBtn = e.target.closest('[data-map-dup]');
       if (dupBtn) {
         e.stopPropagation();
@@ -1956,6 +2694,7 @@
         if (m) {
           selectedId = m.root.id;
           refreshAll(true);
+          renderHomeScreen();
           showToast('Mappa duplicata!');
         }
         return;
@@ -1964,10 +2703,29 @@
       const delBtn = e.target.closest('[data-map-del]');
       if (delBtn) {
         e.stopPropagation();
-        const m = store.deleteMap(delBtn.getAttribute('data-map-del'));
-        selectedId = m.root.id;
-        refreshAll(true);
-        showToast('Mappa eliminata.');
+        const id = delBtn.getAttribute('data-map-del');
+        const targetMap = store.maps.find((x) => x.id === id);
+        if (targetMap) {
+          openConfirmDialog({
+            title: 'Elimina mappa',
+            message: `Vuoi eliminare definitivamente la mappa "${targetMap.title}"?`,
+            confirmText: 'Elimina',
+            danger: true
+          }).then((ok) => {
+            if (!ok) return;
+            const m = store.deleteMap(id);
+            renderHomeScreen();
+            if (!m) {
+              selectedId = null;
+              selectedLinkId = null;
+              showHomeScreen();
+            } else {
+              selectedId = m.root.id;
+              refreshAll(true);
+            }
+            showToast('Mappa eliminata.');
+          });
+        }
         return;
       }
 
@@ -2008,24 +2766,24 @@
       try {
         const text = await file.text();
         const name = file.name.replace(/\.[^.]+$/, '');
+        const folderId = currentRealFolderId();
+        let m = null;
         if (file.name.endsWith('.json')) {
           const parsed = JSON.parse(text);
-          const m = store.createNewMap(parsed);
-          selectedId = m.root.id;
-          refreshAll(true);
+          m = store.createNewMap(parsed, folderId);
           showToast('Mappa caricata con successo!', 'ok');
         } else if (file.name.endsWith('.opml') || file.name.endsWith('.xml')) {
           const root = parseOpml(text);
-          const m = store.createNewMap({ title: root.text || name, root });
-          selectedId = m.root.id;
-          refreshAll(true);
+          m = store.createNewMap({ title: root.text || name, root }, folderId);
           showToast('File OPML importato!', 'ok');
         } else {
           const root = parseOutline(text);
-          const m = store.createNewMap({ title: root.text || name, root });
-          selectedId = m.root.id;
-          refreshAll(true);
+          m = store.createNewMap({ title: root.text || name, root }, folderId);
           showToast('Scaletta importata come mappa!', 'ok');
+        }
+        if (m) {
+          openMapInEditor(m.id);
+          renderHomeScreen();
         }
       } catch (err) {
         showToast('Impossibile leggere il file selezionato.', 'error');
@@ -2496,9 +3254,25 @@
         return;
       }
 
+      // Global Ctrl+S -> quick PDF download
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        commitInlineEditor();
+        quickDownloadMap();
+        return;
+      }
+
       if (e.key === 'F11') {
         e.preventDefault();
         toggleFullscreen();
+        return;
+      }
+
+      if (dom.modalDialog && !dom.modalDialog.hidden) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeInternalDialog(false);
+        }
         return;
       }
 
@@ -2513,6 +3287,8 @@
       }
 
       if (inInput) return;
+      if (dom.homeScreen && !dom.homeScreen.hidden) return;
+      if (!store.getMap()) return;
 
       // Formatting shortcuts on selected node (Ctrl+B, Ctrl+I, Ctrl+U)
       if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'u'].includes(e.key.toLowerCase()) && selectedId) {
@@ -2786,12 +3562,15 @@
         return;
       }
       const tree = parseOutline(raw);
-      const mode = document.querySelector('input[name="imp-mode"]:checked')?.value || 'new';
+      const inHome = dom.homeScreen && !dom.homeScreen.hidden;
+      const mode = inHome || !store.getMap()
+        ? 'new'
+        : document.querySelector('input[name="imp-mode"]:checked')?.value || 'new';
 
       if (mode === 'new') {
-        const m = store.createNewMap({ title: tree.text || 'Mappa da testo', root: tree });
-        selectedId = m.root.id;
-        refreshAll(true);
+        const m = store.createNewMap({ title: tree.text || 'Mappa da testo', root: tree }, currentRealFolderId());
+        openMapInEditor(m.id);
+        renderHomeScreen();
       } else if (mode === 'replace') {
         store.snapshot();
         const map = store.getMap();
@@ -2840,23 +3619,49 @@
     });
 
     dom.expPdf.addEventListener('click', () => {
-      exportPdf(store.getMap(), exportOpts);
+      const map = getExportTargetMap();
+      if (map) exportPdf(map, exportOpts);
     });
 
     dom.expPrint.addEventListener('click', () => {
-      printMap(store.getMap(), exportOpts);
+      const map = getExportTargetMap();
+      if (map) printMap(map, exportOpts);
     });
 
     dom.expPng.addEventListener('click', () => {
-      exportPng(store.getMap(), exportOpts);
+      const map = getExportTargetMap();
+      if (map) exportPng(map, exportOpts);
     });
 
     dom.expSvg.addEventListener('click', () => {
-      exportSvg(store.getMap(), exportOpts);
+      const map = getExportTargetMap();
+      if (map) exportSvg(map, exportOpts);
+    });
+
+    dom.expJson?.addEventListener('click', () => {
+      const map = getExportTargetMap();
+      if (!map) return;
+      const json = JSON.stringify(map, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      downloadBlob(blob, sanitizeFilename(map.title) + '.json');
+      showToast('File .json scaricato!', 'ok');
+    });
+
+    dom.expTxt?.addEventListener('click', () => {
+      const map = getExportTargetMap();
+      if (!map) return;
+      const txt = treeToOutline(map.root);
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      downloadBlob(blob, sanitizeFilename(map.title) + '-scaletta.txt');
+      showToast('Scaletta .txt scaricata!', 'ok');
     });
   }
 
   function openImportModal() {
+    if (isMobileMode()) {
+      showToast('La creazione di mappe è disponibile solo da computer.');
+      return;
+    }
     commitInlineEditor();
     if (!dom.impText.value.trim()) {
       dom.impText.value = SAMPLE_OUTLINES[0];
@@ -2884,8 +3689,8 @@
     const currentMap = store.getMap();
     const previewMap = {
       title: root.text,
-      layout: currentMap.layout,
-      style: currentMap.style,
+      layout: currentMap?.layout || 'down',
+      style: currentMap?.style || window.CMStore.defaultStyle(),
       root,
       links: []
     };
@@ -2904,9 +3709,14 @@
     return false;
   }
 
-  function openExportModal() {
+  function openExportModal(targetMapId = null) {
     commitInlineEditor();
-    const map = store.getMap();
+    exportTargetMapId = targetMapId || null;
+    const map = getExportTargetMap();
+    if (!map) {
+      showToast('Nessuna mappa selezionata da scaricare.', 'error');
+      return;
+    }
     dom.expExpandRow.hidden = !hasCollapsedNodes(map.root);
     syncExportModalControls();
     dom.modalExport.hidden = false;
@@ -2927,7 +3737,8 @@
   }
 
   function updateExportPreview() {
-    const map = store.getMap();
+    const map = getExportTargetMap();
+    if (!map) return;
     const plan = computeExportPlan(map, exportOpts);
     const dataUrl = svgToDataUrl(plan.rendered.svg);
 
