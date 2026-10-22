@@ -397,8 +397,51 @@
     return '';
   }
 
+  const MAX_RECENT_MAPS = 6;
+
+  function recentStorageKey() {
+    return `edumap_recent_maps_v1__${store.scope || 'guest'}`;
+  }
+
+  function getRecentMapIds() {
+    try {
+      const raw = localStorage.getItem(recentStorageKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function touchRecentMap(mapId) {
+    if (!mapId) return;
+    try {
+      const next = [mapId, ...getRecentMapIds().filter((id) => id !== mapId)].slice(0, MAX_RECENT_MAPS);
+      localStorage.setItem(recentStorageKey(), JSON.stringify(next));
+    } catch {}
+  }
+
+  function getRecentMaps() {
+    const byId = new Map(store.maps.map((m) => [m.id, m]));
+    const ids = getRecentMapIds();
+    if (store.activeId && !ids.includes(store.activeId)) {
+      ids.unshift(store.activeId);
+    }
+    const result = [];
+    for (const id of ids) {
+      const m = byId.get(id);
+      if (m && !result.includes(m)) {
+        result.push(m);
+        if (result.length >= MAX_RECENT_MAPS) break;
+      }
+    }
+    return result;
+  }
+
   function showHomeScreen() {
     commitInlineEditor();
+    document.title = 'EduMap – Editor di Mappe Concettuali e Mentali Online';
     if (dom.appRoot) dom.appRoot.hidden = true;
     if (dom.homeScreen) dom.homeScreen.hidden = false;
     renderHomeScreen();
@@ -413,6 +456,8 @@
     store.setActiveMap(mapId);
     const map = store.getMap();
     if (!map) return;
+    touchRecentMap(map.id);
+    document.title = (map.title ? `${map.title} – EduMap` : 'EduMap');
     selectedId = map.root.id;
     selectedLinkId = null;
     if (dom.homeScreen) dom.homeScreen.hidden = true;
@@ -536,7 +581,7 @@
             <p>${
               isSearch
                 ? 'Prova a cercare con un altro termine oppure azzera la barra di ricerca.'
-                : 'L\'editor non crea mappe da solo: clicca qui sotto quando vuoi iniziare una nuova mappa concettuale o generarla da un testo.'
+                : 'EduMap non crea mappe da solo: clicca qui sotto quando vuoi iniziare una nuova mappa concettuale o generarla da un testo.'
             }</p>
             <div class="he-btns">
               <button type="button" class="btn primary" data-empty-create>${svgIcon('plus', 17)}<span>Crea nuova mappa</span></button>
@@ -1607,18 +1652,19 @@
   }
 
   // =========================================================================
-  // SIDEBAR: MAP LIBRARY
+  // SIDEBAR: RECENTLY OPENED MAPS
   // =========================================================================
 
   function renderSidebarList() {
-    const html = store.maps
+    const recentMaps = getRecentMaps();
+    const html = recentMaps
       .map((m) => {
         const active = m.id === store.activeId ? ' active' : '';
         const count = countNodesInTree(m.root);
         return `
           <div class="mi${active}" data-map-id="${m.id}">
             <div class="mi-t">${escapeHtml(m.title || 'Senza titolo')}</div>
-            <div class="mi-d">${count} concetti · ${formatDate(m.updatedAt)}</div>
+            <div class="mi-d">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
             <div class="mi-act">
               <button type="button" data-map-dl="${m.id}" title="Scarica subito PDF">${svgIcon('download', 15)}</button>
               <button type="button" data-map-dup="${m.id}" title="Duplica mappa">${svgIcon('copy', 15)}</button>
@@ -2587,6 +2633,7 @@
     dom.mapTitle.addEventListener('input', () => {
       const map = store.getMap();
       map.title = dom.mapTitle.value;
+      document.title = (map.title ? `${map.title} – EduMap` : 'EduMap');
       store.persist();
       renderSidebarList();
     });
@@ -2655,7 +2702,7 @@
       setTimeout(() => fitToScreen(true), 120);
     });
 
-    dom.btnImport.addEventListener('click', () => openImportModal());
+    dom.btnImport?.addEventListener('click', () => openImportModal());
     dom.btnSpeak.addEventListener('click', () => speakMap());
     dom.btnHelp.addEventListener('click', () => {
       dom.modalHelp.hidden = false;
@@ -2692,6 +2739,7 @@
         e.stopPropagation();
         const m = store.duplicateMap(dupBtn.getAttribute('data-map-dup'));
         if (m) {
+          touchRecentMap(m.id);
           selectedId = m.root.id;
           refreshAll(true);
           renderHomeScreen();
@@ -2732,10 +2780,16 @@
       const item = e.target.closest('[data-map-id]');
       if (item) {
         commitInlineEditor();
-        store.setActiveMap(item.getAttribute('data-map-id'));
-        selectedId = store.getMap().root.id;
-        selectedLinkId = null;
-        refreshAll(true);
+        const targetId = item.getAttribute('data-map-id');
+        store.setActiveMap(targetId);
+        touchRecentMap(targetId);
+        const activeMap = store.getMap();
+        if (activeMap) {
+          document.title = (activeMap.title ? `${activeMap.title} – EduMap` : 'EduMap');
+          selectedId = activeMap.root.id;
+          selectedLinkId = null;
+          refreshAll(true);
+        }
       }
     });
 

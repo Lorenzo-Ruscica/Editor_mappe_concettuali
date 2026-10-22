@@ -2,22 +2,189 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mappe Concettuali – Editor</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='2' width='12' height='8' rx='3' fill='%231e3a8a'/%3E%3Crect x='1' y='22' width='12' height='8' rx='3' fill='%23f59e0b'/%3E%3Crect x='19' y='22' width='12' height='8' rx='3' fill='%2310b981'/%3E%3Cpath d='M16 10v5M7 22v-4h18v4' stroke='%2364748b' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>EduMap – Editor di Mappe Concettuali e Mentali Online</title>
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="EduMap – Editor di Mappe Concettuali e Mentali Online">
+  <meta name="description" content="EduMap è l'editor online gratuito per creare, organizzare e studiare con mappe concettuali e mentali. Generazione automatica da testo, cloud sync, esportazione PDF ad alta risoluzione e grafica vettoriale.">
+  <meta name="keywords" content="EduMap, mappe concettuali, mappe mentali, editor mappe concettuali online, crea mappa concettuale, schema studio, riassunto a mappa, generatore mappe da testo, mind mapping italiano, software mappe concettuali gratis, esporta pdf mappa concettuale, strumenti studio DSA BES">
+  <meta name="author" content="EduMap">
+  <meta name="application-name" content="EduMap">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="canonical" href="https://edumap.vercel.app/">
+
+  <!-- Mobile & PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="EduMap">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Favicon & All Platform Icons (Desktop, Android, iOS/iPadOS, Safari, Windows) -->
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="apple-touch-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167x167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180x180.png">
+  <link rel="mask-icon" href="safari-pinned-tab.svg" color="#1e3a8a">
+  <meta name="msapplication-TileColor" content="#eef4ff">
+  <meta name="msapplication-TileImage" content="mstile-150x150.png">
+  <meta name="msapplication-config" content="browserconfig.xml">
+
+  <!-- Open Graph / Facebook / WhatsApp / LinkedIn / Telegram -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="it_IT">
+  <meta property="og:site_name" content="EduMap">
+  <meta property="og:url" content="https://edumap.vercel.app/">
+  <meta property="og:title" content="EduMap – Editor di Mappe Concettuali e Mentali Online">
+  <meta property="og:description" content="Crea, organizza e condividi mappe concettuali e mentali in pochi secondi, anche partendo da una scaletta o testo. Sincronizzazione cloud e download PDF ad alta risoluzione.">
+  <meta property="og:image" content="https://edumap.vercel.app/og-image.png">
+  <meta property="og:image:secure_url" content="https://edumap.vercel.app/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="EduMap - Editor Mappe Concettuali e Mentali">
+
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="EduMap – Editor di Mappe Concettuali e Mentali Online">
+  <meta name="twitter:description" content="Crea, organizza e condividi mappe concettuali e mentali con EduMap. Generazione da testo, cloud sync e download PDF gratuito.">
+  <meta name="twitter:image" content="https://edumap.vercel.app/og-image.png">
+  <meta name="twitter:image:alt" content="EduMap - Editor Mappe Concettuali e Mentali">
+
+  <!-- Structured Data: JSON-LD (WebSite, WebApplication, FAQPage) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://edumap.vercel.app/#webapp",
+        "name": "EduMap",
+        "url": "https://edumap.vercel.app/",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "description": "Applicazione web per la creazione, organizzazione, personalizzazione ed esportazione di mappe concettuali e mentali con sincronizzazione cloud.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR"
+        },
+        "featureList": [
+          "Generazione automatica di mappe concettuali partendo da testo o scaletta",
+          "Organizzazione delle mappe in cartelle personalizzate a colori",
+          "Sincronizzazione in tempo reale nel cloud con account personale",
+          "Esportazione in PDF ad alta risoluzione per fogli singoli o poster multipagina",
+          "Esportazione rapida in formati PNG, SVG vettoriale e file JSON",
+          "Modalità di layout gerarchico dall'alto, orizzontale o radiale (mind map)",
+          "Spostamento e ridimensionamento libero dei concetti con riallineamento in 1 clic",
+          "Sintesi vocale per la lettura accessibile delle mappe e dei concetti"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://edumap.vercel.app/#website",
+        "url": "https://edumap.vercel.app/",
+        "name": "EduMap",
+        "description": "Editor di Mappe Concettuali e Mentali Online",
+        "inLanguage": "it-IT",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://edumap.vercel.app/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://edumap.vercel.app/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Cos'è EduMap?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "EduMap è un editor web gratuito e moderno progettato per creare mappe concettuali, mappe mentali e schemi di studio in modo intuitivo e veloce, sia su computer che su dispositivi mobili."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Come creare una mappa concettuale partendo da un testo?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Con EduMap puoi incollare qualsiasi testo, appunto o scaletta rientrata: la funzione 'Crea da testo' analizza automaticamente la gerarchia dei concetti, individua le parole legame tra parentesi quadre ed elabora immediatamente la mappa completa."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "EduMap è gratuito?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sì, EduMap è completamente gratuito. Puoi creare tutte le mappe che desideri, salvarle in locale o sincronizzarle nel tuo account cloud senza limiti."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "In quali formati è possibile esportare le mappe concettuali?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Puoi scaricare le mappe in PDF ad alta definizione pronto per la stampa (con supporto per poster su 1, 2, 4 o più fogli), in immagine PNG ad alta risoluzione, in formato vettoriale SVG o come file JSON e scaletta testuale."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Le mappe vengono salvate online?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sì. Effettuando l'accesso gratuito al tuo account EduMap, tutte le mappe e le cartelle vengono sincronizzate istantaneamente nel cloud e accessibili da qualsiasi dispositivo."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<noscript>
+  <div style="padding: 24px; max-width: 800px; margin: 40px auto; font-family: sans-serif; line-height: 1.6; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; color: #1e293b;">
+    <h1 style="color: #1e3a8a; margin-top: 0;">EduMap – Editor di Mappe Concettuali e Mentali Online</h1>
+    <p><strong>EduMap</strong> è la piattaforma gratuita per studenti, insegnanti e professionisti per ideare, schematizzare e riassumere argomenti complessi tramite mappe concettuali e mappe mentali.</p>
+    <h2>Funzionalità principali di EduMap:</h2>
+    <ul>
+      <li><strong>Generatore da testo e scalette:</strong> trasforma appunti e dispense in mappe concettuali ordinate in pochi secondi.</li>
+      <li><strong>Sincronizzazione Cloud:</strong> accedi e ritrova le tue mappe da qualunque computer o dispositivo mobile.</li>
+      <li><strong>Organizzazione in cartelle:</strong> raggruppa le mappe per materia (es. Storia, Scienze, Filosofia, Diritto).</li>
+      <li><strong>Download e stampa PDF:</strong> esporta in qualità tipografica su fogli singoli o poster multipagina (A4, A3).</li>
+      <li><strong>Esportazione PNG e vettoriale SVG:</strong> immagini limpide ideali per slide e presentazioni.</li>
+      <li><strong>Accessibilità e sintesi vocale:</strong> lettura audio dei rami e supporto per l'apprendimento inclusivo (DSA e BES).</li>
+    </ul>
+    <p><em>Per utilizzare l'applicazione interattiva completa, abilita JavaScript nel tuo browser.</em></p>
+  </div>
+</noscript>
 <!-- ============ HOME / DASHBOARD MENU ============ -->
 <div id="home-screen">
   <header class="home-header">
     <div class="home-brand">
       <div class="brand-logo">
-        <svg viewBox="0 0 32 32" width="30" height="30"><rect x="10" y="2" width="12" height="8" rx="3" fill="#1e3a8a"/><rect x="1" y="22" width="12" height="8" rx="3" fill="#f59e0b"/><rect x="19" y="22" width="12" height="8" rx="3" fill="#10b981"/><path d="M16 10v5M7 22v-4h18v4" stroke="#64748b" stroke-width="2" fill="none"/></svg>
+        <img src="icon.svg" width="42" height="42" alt="EduMap">
       </div>
       <div>
-        <div class="home-title">Mappe Concettuali</div>
-        <div class="home-sub">Le tue mappe organizzate in cartelle e sincronizzate nel cloud</div>
+        <div class="home-title">EduMap</div>
+        <div class="home-sub">Crea, organizza e sincronizza le tue mappe concettuali</div>
       </div>
     </div>
 
@@ -88,7 +255,7 @@
     <main class="home-main">
       <div class="mobile-readonly-banner" id="mobile-readonly-banner">
         <span data-icon="help" class="mrb-ic"></span>
-        <span><b>Versione mobile:</b> sfoglia le cartelle e scarica le tue mappe. Per creare o modificare mappe accedi da computer.</span>
+        <span><b>EduMap Mobile:</b> sfoglia le cartelle e scarica le tue mappe. Per creare o modificare mappe accedi da computer.</span>
       </div>
 
       <div class="home-main-bar">
@@ -113,7 +280,7 @@
   <header id="toolbar">
     <div class="tb-group">
       <button class="tool-btn home-back-btn" id="btn-home" data-icon="grid" title="Torna al menu principale delle mappe"><span>Menu</span></button>
-      <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Elenco rapido mappe"></button>
+      <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Mappe aperte di recente"></button>
       <input id="map-title" type="text" spellcheck="false" autocomplete="off" aria-label="Titolo della mappa">
       <span id="save-state" class="save-state">Salvato</span>
     </div>
@@ -147,7 +314,6 @@
     </div>
     <div class="tb-spacer"></div>
     <div class="tb-group tb-right">
-      <button class="tool-btn" id="btn-import" data-icon="text" title="Crea la mappa da un testo / scaletta"><span>Da testo</span></button>
       <button class="icon-btn" id="btn-speak" data-icon="volume" title="Leggi ad alta voce"></button>
       <button class="icon-btn" id="btn-help" data-icon="help" title="Guida e scorciatoie"></button>
       <button class="icon-btn" id="btn-props" data-icon="sliders" title="Mostra/nascondi pannello proprietà"></button>
@@ -161,7 +327,7 @@
     <!-- ============ SIDEBAR ============ -->
     <aside id="sidebar" class="collapsed">
       <div class="sb-head">
-        <h2>Le mie mappe</h2>
+        <h2>Aperte di recente</h2>
         <button class="btn primary small" id="btn-new" data-icon="plus"><span>Nuova</span></button>
       </div>
       <div id="sb-cloud-bar" class="sb-cloud-bar">

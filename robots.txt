@@ -1,0 +1,7 @@
+# Robots.txt per EduMap (https://edumap.vercel.app)
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Host e Sitemap
+Sitemap: https://edumap.vercel.app/sitemap.xml

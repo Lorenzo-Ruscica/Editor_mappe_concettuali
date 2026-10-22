@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --primary: #2563eb;
   --primary-600: #1d4ed8;
   --primary-50: #eef4ff;
@@ -484,7 +484,7 @@ select.pp-input { cursor: pointer; }
 }
 .home-brand { display: flex; align-items: center; gap: 12px; }
 .brand-logo {
-  width: 42px; height: 42px; border-radius: 11px; background: #eef4ff; border: 1px solid #dbeafe;
+  width: 42px; height: 42px; border-radius: 11px; overflow: hidden;
   display: flex; align-items: center; justify-content: center; flex: 0 0 42px;
 }
 .home-title { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.2; }

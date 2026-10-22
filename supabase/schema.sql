@@ -1,5 +1,5 @@
 -- =============================================================================
--- SCHEMA DATABASE SUPABASE – EDITOR MAPPE CONCETTUALI
+-- SCHEMA DATABASE SUPABASE – EDUMAP (EDITOR MAPPE CONCETTUALI)
 -- Esegui l'intero contenuto di questo file nel "SQL Editor" di Supabase -> "Run"
 -- =============================================================================
 

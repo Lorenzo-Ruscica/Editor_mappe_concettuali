@@ -209,7 +209,7 @@
     // Info dictionary
     const safeTitle = String(title || 'Mappa Concettuale').replace(/[()\\]/g, '');
     startObj(infoObjId);
-    pushStr(`<< /Title (${safeTitle}) /Creator (Mappe Concettuali Editor) >>`);
+    pushStr(`<< /Title (${safeTitle}) /Creator (EduMap - Editor Mappe Concettuali) >>`);
     endObj();
 
     // Cross-reference table
