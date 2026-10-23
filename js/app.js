@@ -229,6 +229,12 @@
   let activeDialogResolve = null;
   let exportTargetMapId = null;
 
+  function updateMapTitleInput(title) {
+    if (!dom.mapTitle) return;
+    dom.mapTitle.value = title || '';
+    dom.mapTitle.title = title ? `Titolo: ${title}` : 'Titolo della mappa';
+  }
+
   function isMobileMode() {
     return (
       window.matchMedia('(max-width: 820px)').matches ||
@@ -340,15 +346,20 @@
       if (st === 'saving') {
         dom.saveState.textContent = 'Salvataggio…';
         dom.saveState.className = 'save-state saving';
+        dom.saveState.title = 'Salvataggio modifiche in corso…';
       } else if (st === 'error') {
         dom.saveState.textContent = 'Spazio pieno';
         dom.saveState.className = 'save-state error';
+        dom.saveState.title = 'Spazio di archiviazione pieno';
       } else if (window.CMCloud && window.CMCloud.isLoggedIn() && window.CMCloud.hasPendingChanges()) {
         dom.saveState.textContent = 'Salvataggio online…';
         dom.saveState.className = 'save-state saving';
+        dom.saveState.title = 'Sincronizzazione con il cloud in corso…';
       } else {
-        dom.saveState.textContent = window.CMCloud && window.CMCloud.isLoggedIn() ? 'Salvato online' : 'Salvato';
+        const isOnline = window.CMCloud && window.CMCloud.isLoggedIn();
+        dom.saveState.textContent = isOnline ? 'Salvato online' : 'Salvato';
         dom.saveState.className = 'save-state';
+        dom.saveState.title = isOnline ? 'Tutte le modifiche sono state salvate online' : 'Modifiche salvate in locale sul dispositivo';
       }
     };
 
@@ -1442,7 +1453,7 @@
           renderToolbarState();
           renderSidebarList();
           updateStatusBar();
-          dom.mapTitle.value = map.title;
+          updateMapTitleInput(map.title);
           if (!typingInProps && !editSession) renderPropsPanel();
         }
         updateAuthUI();
@@ -1498,7 +1509,7 @@
       selectedId = map.root.id;
     }
 
-    dom.mapTitle.value = map.title;
+    updateMapTitleInput(map.title);
     const theme = getTheme(map.style?.theme, false);
     dom.canvasWrap.style.backgroundColor = theme.bg;
 
@@ -1621,8 +1632,8 @@
     const isRoot = selectedId === map.root.id;
     dom.btnUndo.disabled = !store.canUndo();
     dom.btnRedo.disabled = !store.canRedo();
-    dom.btnChild.disabled = !selectedId;
-    dom.btnSibling.disabled = !selectedId;
+    if (dom.btnChild) dom.btnChild.disabled = !selectedId;
+    if (dom.btnSibling) dom.btnSibling.disabled = !selectedId;
     dom.btnLink.disabled = !selectedId;
     dom.btnLink.classList.toggle('active', Boolean(linkingFrom));
     dom.btnDelete.disabled = (!selectedId || isRoot) && !selectedLinkId;
@@ -2002,7 +2013,7 @@
           n.text = htmlToRichText(txtEl).trim() || 'Concetto';
           if (info.depth === 0) {
             map.title = stripRichTags(n.text).replace(/\s+/g, ' ').trim() || map.title;
-            dom.mapTitle.value = map.title;
+            updateMapTitleInput(map.title);
             renderSidebarList();
           }
           store.persist();
@@ -2368,7 +2379,7 @@
         info.node.text = plainVal ? richVal : 'Concetto';
         if (info.depth === 0) {
           map.title = stripRichTags(info.node.text).replace(/\s+/g, ' ').trim();
-          dom.mapTitle.value = map.title;
+          updateMapTitleInput(map.title);
         }
       }
     } else if (type === 'edge') {
@@ -2633,6 +2644,7 @@
     dom.mapTitle.addEventListener('input', () => {
       const map = store.getMap();
       map.title = dom.mapTitle.value;
+      dom.mapTitle.title = dom.mapTitle.value ? `Titolo: ${dom.mapTitle.value}` : 'Titolo della mappa';
       document.title = (map.title ? `${map.title} – EduMap` : 'EduMap');
       store.persist();
       renderSidebarList();
@@ -2651,8 +2663,8 @@
       if (store.redo()) refreshAll(false);
     });
 
-    dom.btnChild.addEventListener('click', () => actionAddChild());
-    dom.btnSibling.addEventListener('click', () => actionAddSibling());
+    dom.btnChild?.addEventListener('click', () => actionAddChild());
+    dom.btnSibling?.addEventListener('click', () => actionAddSibling());
     dom.btnLink.addEventListener('click', () => toggleLinkMode());
     dom.btnDelete.addEventListener('click', () => actionDeleteSelected());
 

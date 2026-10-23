@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --primary: #2563eb;
   --primary-600: #1d4ed8;
   --primary-50: #eef4ff;
@@ -41,23 +41,36 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.
 #toolbar {
   display: flex; align-items: center; gap: 5px; padding: 0 12px; height: 56px; flex: 0 0 56px;
   background: var(--panel); border-bottom: 1px solid var(--border); z-index: 20; position: relative;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, .3) transparent;
 }
-#toolbar::-webkit-scrollbar { display: none; }
+#toolbar::-webkit-scrollbar { height: 3px; }
+#toolbar::-webkit-scrollbar-track { background: transparent; }
+#toolbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .35); border-radius: 3px; }
+
 .tb-group { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 .tb-group.tb-right { gap: 6px; padding-right: 2px; }
 .tb-sep { width: 1px; height: 26px; background: var(--border); margin: 0 5px; flex: 0 0 auto; }
 .tb-spacer { flex: 1 1 auto; min-width: 6px; }
 .brand { display: flex; align-items: center; margin: 0 4px 0 2px; }
 #map-title {
-  border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; font-size: 15px; font-weight: 600;
-  width: clamp(130px, 14vw, 200px); background: transparent; outline: none; text-overflow: ellipsis;
+  border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; font-size: 14.5px; font-weight: 600;
+  width: clamp(140px, 16vw, 280px); background: transparent; outline: none; text-overflow: ellipsis;
+  flex: 0 1 auto; min-width: 80px; transition: width .15s ease, border-color .12s, background .12s;
 }
 #map-title:hover { border-color: var(--border); }
 #map-title:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-.save-state { font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 70px; }
+.save-state {
+  font-size: 12px; color: var(--muted); white-space: nowrap; max-width: 140px; overflow: hidden;
+  text-overflow: ellipsis; flex: 0 1 auto;
+}
 .save-state.saving { color: #b45309; }
 .save-state.error { color: var(--danger); font-weight: 600; }
+#btn-export { flex-shrink: 0; }
+.btn-text-full { display: inline; }
+.btn-text-short { display: none; }
 
 .icon-btn, .tool-btn {
   height: 36px; min-width: 36px; border: none; background: transparent; border-radius: 8px; cursor: pointer;
@@ -913,20 +926,86 @@ body.is-mobile .mc-dl-action:hover {
 #print-root { display: none; }
 
 /* ================= RESPONSIVE ================= */
-@media (max-width: 1360px) {
-  .tool-btn span { display: none; }
-  #map-title { width: 150px; }
+
+/* Tier 1: Large Laptops & Scaled High-DPI screens (<= 1460px)
+   - Secondary node creation and view labels collapse to clear icons with tooltips
+   - Export button simplifies from "PDF / Stampa" to "PDF"
+   - Clamps title gracefully. Solves clipping on 1366x768 and 1440x900 laptops! */
+@media (max-width: 1460px) {
+  .tb-nodes .tool-btn span,
+  #btn-free-mode span,
+  #btn-quick-pdf span {
+    display: none;
+  }
+  .btn-text-full { display: none; }
+  .btn-text-short { display: inline; }
+  #map-title { width: clamp(120px, 14vw, 220px); }
 }
+
+/* Tier 2: Standard Laptops & 1280px Monitors (<= 1260px)
+   - "Menu" label collapses to icon with tooltip
+   - Export button becomes a compact primary icon button
+   - Duplicate #btn-quick-pdf is hidden (export modal right next to it has 1-click PDF download & print)
+   - Save status is compact */
+@media (max-width: 1260px) {
+  .home-back-btn span { display: none; }
+  #btn-export span { display: none !important; }
+  #btn-export { padding: 0 9px; min-width: 36px; }
+  #btn-quick-pdf { display: none; }
+  .tb-sep-export { display: none; }
+  .save-state { max-width: 85px; font-size: 11.5px; }
+  #map-title { width: clamp(110px, 12vw, 180px); }
+}
+
+/* Tier 3: Medium Screens & iPad Landscape (<= 1120px)
+   - Fullscreen button hidden (F11 is standard)
+   - Save status text hidden (auto-saved; full status in sidebar)
+   - Spacing and separators tighten */
+@media (max-width: 1120px) {
+  #btn-fullscreen { display: none; }
+  .save-state { display: none; }
+  .tb-sep { margin: 0 3px; }
+  #toolbar { gap: 4px; padding: 0 10px; }
+  .tb-group { gap: 3px; }
+  .tb-group.tb-right { gap: 4px; }
+}
+
+/* Tier 4: Small Screens & Compact Windows (<= 1040px)
+   - Zoom percentage label hidden (zoom in/out/fit remain)
+   - Audio speak button hidden (niche feature)
+   - Tightens padding and title */
+@media (max-width: 1040px) {
+  #zoom-label { display: none; }
+  #btn-speak { display: none; }
+  #map-title { width: clamp(95px, 11vw, 150px); }
+  #toolbar { gap: 3px; padding: 0 8px; }
+  .tb-sep { margin: 0 2px; }
+}
+
+/* Sidebars and Modals at <= 1000px */
 @media (max-width: 1000px) {
   #props { position: absolute; right: 0; top: 0; bottom: 0; box-shadow: -8px 0 24px rgba(15, 23, 42, .12); }
   #sidebar { position: absolute; left: 0; top: 0; bottom: 0; box-shadow: 8px 0 24px rgba(15, 23, 42, .12); }
-  .save-state { display: none; }
   .import-grid, .export-grid { grid-template-columns: 1fr; }
   .exp-preview-wrap { min-height: 260px; }
 }
+
+/* Tier 5: Split-Screen & Narrow Desktop Windows (<= 880px)
+   - Zoom Fit button hidden (zoom in and out remain)
+   - Help button hidden (shortcuts in bottom statusbar)
+   - Layout segment buttons compact
+   - Title compact */
+@media (max-width: 880px) {
+  #btn-fit { display: none; }
+  #btn-help { display: none; }
+  #layout-seg button { width: 30px; min-width: 28px; }
+  #layout-seg .ic { width: 16px; height: 16px; }
+  #map-title { width: clamp(80px, 10vw, 120px); font-size: 13.5px; }
+}
+
+/* Tier 6: Narrow viewports (<= 640px) */
 @media (max-width: 640px) {
-  #btn-export span { display: none; }
-  #map-title { width: 110px; }
+  #map-title { width: clamp(75px, 9vw, 100px); }
   .brand { display: none; }
 }
 
