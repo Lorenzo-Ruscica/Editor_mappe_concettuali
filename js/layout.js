@@ -122,7 +122,12 @@
         item.hiddenCount = countDescendants(node);
       } else {
         item.children = rawChildren.map((ch, idx) => {
-          const bIdx = depth === 0 ? idx : branchIndex;
+          const bIdx =
+            typeof ch._origBranchIndex === 'number'
+              ? ch._origBranchIndex
+              : depth === 0
+              ? idx
+              : branchIndex;
           return visit(ch, depth + 1, bIdx, item);
         });
       }

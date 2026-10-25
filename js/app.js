@@ -3794,15 +3794,18 @@
     const map = getExportTargetMap();
     if (!map) return;
     const plan = computeExportPlan(map, exportOpts);
-    const dataUrl = svgToDataUrl(plan.rendered.svg);
 
     const wrapRect = dom.expPreview.parentElement.getBoundingClientRect();
     const maxW = Math.max(260, (wrapRect.width || 560) - 44);
     const maxH = Math.max(260, (wrapRect.height || 440) - 44);
 
+    const gapPx = 14;
+    const availW = Math.max(120, maxW - (plan.grid.cols - 1) * gapPx);
+    const availH = Math.max(120, maxH - (plan.grid.rows - 1) * gapPx);
+
     const totalGridWmm = plan.pageWmm * plan.grid.cols;
     const totalGridHmm = plan.pageHmm * plan.grid.rows;
-    const pxPerMm = Math.min(maxW / totalGridWmm, maxH / totalGridHmm);
+    const pxPerMm = Math.min(availW / totalGridWmm, availH / totalGridHmm);
 
     const pageWpx = Math.round(plan.pageWmm * pxPerMm);
     const pageHpx = Math.round(plan.pageHmm * pxPerMm);
@@ -3813,40 +3816,52 @@
     dom.expPreview.style.gridTemplateColumns = `repeat(${plan.grid.cols}, ${pageWpx}px)`;
     dom.expPreview.innerHTML = '';
 
-    for (let r = 0; r < plan.grid.rows; r++) {
-      for (let c = 0; c < plan.grid.cols; c++) {
-        const pageDiv = document.createElement('div');
-        pageDiv.className = 'prev-page';
-        pageDiv.style.width = `${pageWpx}px`;
-        pageDiv.style.height = `${pageHpx}px`;
+    for (let i = 0; i < plan.sheets.length; i++) {
+      const sheet = plan.sheets[i];
+      const dataUrl = svgToDataUrl(sheet.rendered.svg);
 
-        const areaDiv = document.createElement('div');
-        areaDiv.className = 'prev-area';
-        areaDiv.style.left = `${marginPx}px`;
-        areaDiv.style.top = `${marginPx}px`;
-        areaDiv.style.width = `${innerWpx}px`;
-        areaDiv.style.height = `${innerHpx}px`;
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'prev-page';
+      pageDiv.style.width = `${pageWpx}px`;
+      pageDiv.style.height = `${pageHpx}px`;
 
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.style.left = `${(plan.offsetXmm - c * plan.innerWmm) * pxPerMm}px`;
-        img.style.top = `${(plan.offsetYmm - r * plan.innerHmm) * pxPerMm}px`;
-        img.style.width = `${plan.drawWmm * pxPerMm}px`;
-        img.style.height = `${plan.drawHmm * pxPerMm}px`;
+      const areaDiv = document.createElement('div');
+      areaDiv.className = 'prev-area';
+      areaDiv.style.left = `${marginPx}px`;
+      areaDiv.style.top = `${marginPx}px`;
+      areaDiv.style.width = `${innerWpx}px`;
+      areaDiv.style.height = `${innerHpx}px`;
 
-        areaDiv.appendChild(img);
-        pageDiv.appendChild(areaDiv);
-        dom.expPreview.appendChild(pageDiv);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.left = `${sheet.offsetXmm * pxPerMm}px`;
+      img.style.top = `${sheet.offsetYmm * pxPerMm}px`;
+      img.style.width = `${sheet.drawWmm * pxPerMm}px`;
+      img.style.height = `${sheet.drawHmm * pxPerMm}px`;
+
+      areaDiv.appendChild(img);
+      pageDiv.appendChild(areaDiv);
+
+      if (plan.sheets.length > 1) {
+        const badge = document.createElement('div');
+        badge.className = 'prev-page-badge';
+        badge.textContent = `Scheda ${i + 1}/${plan.sheets.length}`;
+        pageDiv.appendChild(badge);
       }
+
+      dom.expPreview.appendChild(pageDiv);
     }
 
     const orientLabel = plan.isLandscape ? 'Orizzontale' : 'Verticale';
-    const numPages = plan.grid.cols * plan.grid.rows;
-    const pagesDesc = numPages === 1 ? '1 foglio' : `${numPages} fogli (${plan.grid.cols}×${plan.grid.rows} poster)`;
+    const numPages = plan.sheets.length;
+    const pagesDesc =
+      numPages === 1
+        ? '1 scheda'
+        : `Divisa in <b>${numPages} schede distinte</b>`;
 
-    if (plan.zoomPct < 55 && numPages === 1) {
+    if (plan.zoomPct < 58 && numPages === 1) {
       dom.expInfo.className = 'exp-info warn';
-      dom.expInfo.innerHTML = `<b>${plan.paper.label} · ${orientLabel}</b> · Scala <b>${plan.zoomPct}%</b>.<br>La mappa è molto ampia: prova a selezionare <b>2</b> o <b>4 fogli</b> per stamparla più grande!`;
+      dom.expInfo.innerHTML = `<b>${plan.paper.label} · ${orientLabel}</b> · Scala <b>${plan.zoomPct}%</b>.<br>Lo schema è molto ampio: seleziona <b>2</b>, <b>3</b> o <b>4</b> (oppure <b>Auto</b>) per dividere le colonne in schede distinte più grandi e leggibili!`;
     } else {
       dom.expInfo.className = 'exp-info';
       dom.expInfo.innerHTML = `<b>${plan.paper.label} · ${orientLabel}</b> · ${pagesDesc} · Scala <b>${plan.zoomPct}%</b>`;
