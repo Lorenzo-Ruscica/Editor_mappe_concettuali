@@ -156,7 +156,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=1.2">
 </head>
 <body>
 <noscript>
@@ -278,34 +278,34 @@
 <div id="app" hidden>
   <!-- ============ TOOLBAR ============ -->
   <header id="toolbar">
-    <div class="tb-group">
+    <div class="tb-group tb-lead">
       <button class="tool-btn home-back-btn" id="btn-home" data-icon="grid" title="Torna al menu principale delle mappe"><span>Menu</span></button>
       <button class="icon-btn" id="btn-sidebar" data-icon="menu" title="Mappe aperte di recente"></button>
-      <input id="map-title" type="text" spellcheck="false" autocomplete="off" aria-label="Titolo della mappa">
+      <input id="map-title" type="text" spellcheck="false" autocomplete="off" aria-label="Titolo della mappa" title="Titolo della mappa">
       <span id="save-state" class="save-state">Salvato</span>
     </div>
 
     <div class="tb-sep"></div>
-    <div class="tb-group">
+    <div class="tb-group tb-history">
       <button class="icon-btn" id="btn-undo" data-icon="undo" title="Annulla (Ctrl+Z)"></button>
       <button class="icon-btn" id="btn-redo" data-icon="redo" title="Ripeti (Ctrl+Y)"></button>
     </div>
     <div class="tb-sep"></div>
-    <div class="tb-group">
-      <button class="tool-btn" id="btn-child" data-icon="child" title="Aggiungi concetto figlio (Tab)"><span>Figlio</span></button>
-      <button class="tool-btn" id="btn-sibling" data-icon="sibling" title="Aggiungi concetto fratello (Invio)"><span>Fratello</span></button>
+    <div class="tb-group tb-nodes">
       <button class="tool-btn" id="btn-link" data-icon="link" title="Collega due concetti (K)"><span>Collega</span></button>
       <button class="icon-btn" id="btn-delete" data-icon="trash" title="Elimina (Canc)"></button>
     </div>
     <div class="tb-sep"></div>
-    <div class="tb-group seg" id="layout-seg" role="group" aria-label="Disposizione">
-      <button data-layout="down" data-icon="layoutDown" title="Gerarchica dall'alto"></button>
-      <button data-layout="right" data-icon="layoutRight" title="Orizzontale"></button>
-      <button data-layout="mind" data-icon="layoutMind" title="Mappa mentale (bilanciata)"></button>
+    <div class="tb-group tb-layout">
+      <div class="seg" id="layout-seg" role="group" aria-label="Disposizione">
+        <button data-layout="down" data-icon="layoutDown" title="Gerarchica dall'alto"></button>
+        <button data-layout="right" data-icon="layoutRight" title="Orizzontale"></button>
+        <button data-layout="mind" data-icon="layoutMind" title="Mappa mentale (bilanciata)"></button>
+      </div>
+      <button class="tool-btn" id="btn-free-mode" data-icon="move" title="Attiva/disattiva spostamento e ridimensionamento libero dei riquadri"><span>Libero</span></button>
     </div>
-    <button class="tool-btn" id="btn-free-mode" data-icon="move" title="Attiva/disattiva spostamento e ridimensionamento libero dei riquadri"><span>Libero</span></button>
     <div class="tb-sep"></div>
-    <div class="tb-group">
+    <div class="tb-group tb-zoom">
       <button class="icon-btn" id="btn-zoom-out" data-icon="zoomOut" title="Riduci (Ctrl -)"></button>
       <button class="zoom-label" id="zoom-label" title="Zoom 100%">100%</button>
       <button class="icon-btn" id="btn-zoom-in" data-icon="zoomIn" title="Ingrandisci (Ctrl +)"></button>
@@ -317,9 +317,9 @@
       <button class="icon-btn" id="btn-speak" data-icon="volume" title="Leggi ad alta voce"></button>
       <button class="icon-btn" id="btn-help" data-icon="help" title="Guida e scorciatoie"></button>
       <button class="icon-btn" id="btn-props" data-icon="sliders" title="Mostra/nascondi pannello proprietà"></button>
-      <div class="tb-sep"></div>
+      <div class="tb-sep tb-sep-export"></div>
       <button class="tool-btn" id="btn-quick-pdf" data-icon="download" title="Scarica subito in PDF (Ctrl+S)"><span>Scarica</span></button>
-      <button class="btn primary" id="btn-export" data-icon="printer" title="Opzioni di scaricamento e stampa (Ctrl+P)"><span>PDF / Stampa</span></button>
+      <button class="btn primary" id="btn-export" data-icon="printer" title="Opzioni di stampa e salvataggio PDF (Ctrl+P)"><span class="btn-text-full">Stampa / PDF</span><span class="btn-text-short">Stampa</span></button>
     </div>
   </header>
 
@@ -655,6 +655,6 @@ Il sistema solare
 <script src="js/layout.js"></script>
 <script src="js/render.js"></script>
 <script src="js/exporter.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=1.2"></script>
 </body>
 </html>
