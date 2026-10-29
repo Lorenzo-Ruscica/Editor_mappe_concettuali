@@ -382,13 +382,50 @@
       }
     }, 120));
 
-    // All'avvio mostriamo sempre il menu principale (Home / Dashboard)
-    showHomeScreen();
+    // Routing URL con cronologia avanti/indietro
+    window.addEventListener('popstate', () => {
+      const requestedId = !isMobileMode() ? getRequestedMapIdFromUrl() : null;
+      if (requestedId && store.maps.some((m) => m.id === requestedId)) {
+        openMapInEditor(requestedId, false);
+      } else {
+        showHomeScreen(false);
+      }
+    });
+
+    // Sincronizzazione automatica tra più schede aperte del browser
+    window.addEventListener('storage', (e) => {
+      if (e.key === store.keys?.maps || e.key === store.keys?.folders) {
+        store.reloadExternalMaps();
+        if (dom.homeScreen && !dom.homeScreen.hidden) {
+          renderHomeScreen();
+        } else {
+          renderSidebarList();
+          const cur = store.getMap();
+          if (cur) {
+            refreshAll(false);
+          }
+        }
+      }
+    });
+
+    // All'avvio apriamo la mappa richiesta nell'URL (se presente), altrimenti il menu principale
+    const requestedMapId = !isMobileMode() ? getRequestedMapIdFromUrl() : null;
+    if (requestedMapId && store.maps.some((m) => m.id === requestedMapId)) {
+      openMapInEditor(requestedMapId, false);
+    } else {
+      showHomeScreen(false);
+    }
 
     // Login + salvataggio online (Supabase). Se non configurato l'app resta solo locale.
     if (window.CMCloud) {
       window.CMCloud.init(store).then(() => {
         updateAuthUI();
+        const pendingMapId = !isMobileMode() ? getRequestedMapIdFromUrl() : null;
+        if (pendingMapId && store.maps.some((m) => m.id === pendingMapId)) {
+          if (!store.activeId || store.activeId !== pendingMapId) {
+            openMapInEditor(pendingMapId, false);
+          }
+        }
         renderHomeScreen();
       });
     }
@@ -450,23 +487,88 @@
     return result;
   }
 
-  function showHomeScreen() {
+  function getMapUrl(mapId) {
+    if (!mapId) return window.location.pathname || './';
+    return `?map=${encodeURIComponent(mapId)}`;
+  }
+
+  function getRequestedMapIdFromUrl() {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const qMap = sp.get('map');
+      if (qMap) return qMap;
+      if (window.location.hash) {
+        const hash = window.location.hash.replace(/^#/, '');
+        const hashParams = new URLSearchParams(hash);
+        if (hashParams.get('map')) return hashParams.get('map');
+        const match = hash.match(/^map=([^&]+)/) || hash.match(/^\/map\/([^&]+)/);
+        if (match) return decodeURIComponent(match[1]);
+      }
+    } catch {}
+    return null;
+  }
+
+  function updateUrlForMap(mapId, push = true) {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('map') === mapId) return;
+      url.searchParams.set('map', mapId);
+      url.hash = '';
+      const targetUrl = url.pathname + url.search;
+      if (push) {
+        window.history.pushState({ mapId }, '', targetUrl);
+      } else {
+        window.history.replaceState({ mapId }, '', targetUrl);
+      }
+    } catch {
+      try {
+        window.location.hash = `map=${encodeURIComponent(mapId)}`;
+      } catch {}
+    }
+  }
+
+  function updateUrlForHome(push = true) {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('map') && !url.hash) return;
+      url.searchParams.delete('map');
+      url.hash = '';
+      const targetUrl = url.pathname + (url.search || '');
+      if (push) {
+        window.history.pushState({ home: true }, '', targetUrl);
+      } else {
+        window.history.replaceState({ home: true }, '', targetUrl);
+      }
+    } catch {
+      try {
+        if (window.location.hash) window.location.hash = '';
+      } catch {}
+    }
+  }
+
+  function showHomeScreen(updateUrl = true) {
     commitInlineEditor();
     document.title = 'EduMap – Editor di Mappe Concettuali e Mentali Online';
     if (dom.appRoot) dom.appRoot.hidden = true;
     if (dom.homeScreen) dom.homeScreen.hidden = false;
     renderHomeScreen();
     updateAuthUI();
+    if (updateUrl) {
+      updateUrlForHome(true);
+    }
   }
 
-  function openMapInEditor(mapId) {
+  function openMapInEditor(mapId, updateUrl = true) {
     if (isMobileMode()) {
       showToast('La creazione e modifica delle mappe è disponibile solo da computer.');
       return;
     }
     store.setActiveMap(mapId);
     const map = store.getMap();
-    if (!map) return;
+    if (!map) {
+      showHomeScreen(updateUrl);
+      return;
+    }
     touchRecentMap(map.id);
     document.title = (map.title ? `${map.title} – EduMap` : 'EduMap');
     selectedId = map.root.id;
@@ -474,6 +576,9 @@
     if (dom.homeScreen) dom.homeScreen.hidden = true;
     if (dom.appRoot) dom.appRoot.hidden = false;
     refreshAll(true);
+    if (updateUrl) {
+      updateUrlForMap(map.id, true);
+    }
   }
 
   function renderHomeScreen() {
@@ -632,18 +737,42 @@
           ? `<div class="mc-folder-pill"><span class="mc-folder-dot" style="background:${escapeHtml(fObj.color)}"></span><span>${escapeHtml(fObj.name)}</span></div>`
           : '';
 
-        const primaryCardActionAttr = mobile
-          ? `data-export-map="${escapeHtml(m.id)}"`
-          : `data-open-map="${escapeHtml(m.id)}"`;
+        const mapUrl = getMapUrl(m.id);
+
+        if (mobile) {
+          return `
+            <article class="map-card" draggable="false" data-card-map-id="${escapeHtml(m.id)}">
+              <div class="mc-preview" data-export-map="${escapeHtml(m.id)}" style="background:${escapeHtml(theme.bg)}">
+                ${pillHtml}
+                <svg viewBox="${viewBoxAttr}" preserveAspectRatio="xMidYMid meet">${previewInner}</svg>
+              </div>
+              <div class="mc-body">
+                <div class="mc-title" data-export-map="${escapeHtml(m.id)}" title="${escapeHtml(m.title)}">${escapeHtml(m.title || 'Senza titolo')}</div>
+                <div class="mc-meta">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
+                <div class="mc-folder-row">
+                  <label>Cartella:</label>
+                  <select class="mc-folder-select" data-map-folder="${escapeHtml(m.id)}">
+                    ${folderOptionsHtml(m.folderId)}
+                  </select>
+                </div>
+              </div>
+              <div class="mc-actions">
+                <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
+                <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
+                <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Elimina mappa">${svgIcon('trash', 16)}</button>
+              </div>
+            </article>
+          `;
+        }
 
         return `
-          <article class="map-card" draggable="${!mobile}" data-card-map-id="${escapeHtml(m.id)}">
-            <div class="mc-preview" ${primaryCardActionAttr} style="background:${escapeHtml(theme.bg)}">
+          <article class="map-card" draggable="true" data-card-map-id="${escapeHtml(m.id)}">
+            <a href="${escapeHtml(mapUrl)}" class="mc-preview" draggable="false" data-open-map="${escapeHtml(m.id)}" style="background:${escapeHtml(theme.bg)}">
               ${pillHtml}
               <svg viewBox="${viewBoxAttr}" preserveAspectRatio="xMidYMid meet">${previewInner}</svg>
-            </div>
+            </a>
             <div class="mc-body">
-              <div class="mc-title" ${primaryCardActionAttr} title="${escapeHtml(m.title)}">${escapeHtml(m.title || 'Senza titolo')}</div>
+              <a href="${escapeHtml(mapUrl)}" class="mc-title" draggable="false" data-open-map="${escapeHtml(m.id)}" title="${escapeHtml(m.title)}">${escapeHtml(m.title || 'Senza titolo')}</a>
               <div class="mc-meta">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
               <div class="mc-folder-row">
                 <label>Cartella:</label>
@@ -653,7 +782,8 @@
               </div>
             </div>
             <div class="mc-actions">
-              <button type="button" class="btn primary small mc-desktop-only" data-open-map="${escapeHtml(m.id)}">Apri</button>
+              <a href="${escapeHtml(mapUrl)}" class="btn primary small mc-desktop-only" draggable="false" data-open-map="${escapeHtml(m.id)}">Apri</a>
+              <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener" class="icon-btn mc-desktop-only" draggable="false" data-open-newtab title="Apri in una nuova scheda">${svgIcon('externalLink', 16)}</a>
               <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
               <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
               <button type="button" class="icon-btn mc-desktop-only" data-dup-map="${escapeHtml(m.id)}" title="Duplica mappa">${svgIcon('copy', 16)}</button>
@@ -666,7 +796,11 @@
   }
 
   function bindHomeEvents() {
-    dom.btnHome?.addEventListener('click', () => showHomeScreen());
+    dom.btnHome?.addEventListener('click', (e) => {
+      if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      showHomeScreen();
+    });
 
     dom.homeSearch?.addEventListener('input', () => renderHomeScreen());
 
@@ -866,8 +1000,16 @@
         return;
       }
 
+      if (e.target.closest('[data-open-newtab]')) {
+        return;
+      }
+
       const openEl = e.target.closest('[data-open-map]');
       if (openEl) {
+        if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+          return;
+        }
+        e.preventDefault();
         const targetId = openEl.getAttribute('data-open-map');
         if (isMobileMode()) {
           openExportModal(targetId);
@@ -1672,11 +1814,15 @@
       .map((m) => {
         const active = m.id === store.activeId ? ' active' : '';
         const count = countNodesInTree(m.root);
+        const mapUrl = getMapUrl(m.id);
         return `
           <div class="mi${active}" data-map-id="${m.id}">
-            <div class="mi-t">${escapeHtml(m.title || 'Senza titolo')}</div>
-            <div class="mi-d">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
+            <a href="${escapeHtml(mapUrl)}" class="mi-main" data-open-map="${m.id}" draggable="false">
+              <div class="mi-t">${escapeHtml(m.title || 'Senza titolo')}</div>
+              <div class="mi-d">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
+            </a>
             <div class="mi-act">
+              <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener" class="mi-act-btn" data-map-newtab title="Apri in una nuova scheda">${svgIcon('externalLink', 14)}</a>
               <button type="button" data-map-dl="${m.id}" title="Scarica subito PDF">${svgIcon('download', 15)}</button>
               <button type="button" data-map-dup="${m.id}" title="Duplica mappa">${svgIcon('copy', 15)}</button>
               <button type="button" class="del" data-map-del="${m.id}" title="Elimina mappa">${svgIcon('trash', 15)}</button>
@@ -2782,6 +2928,7 @@
             } else {
               selectedId = m.root.id;
               refreshAll(true);
+              updateUrlForMap(m.id);
             }
             showToast('Mappa eliminata.');
           });
@@ -2789,19 +2936,27 @@
         return;
       }
 
+      const newTabBtn = e.target.closest('[data-map-newtab]');
+      if (newTabBtn) {
+        return;
+      }
+
+      const openEl = e.target.closest('[data-open-map]') || e.target.closest('.mi-main');
+      if (openEl) {
+        if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+          return;
+        }
+        e.preventDefault();
+      }
+
       const item = e.target.closest('[data-map-id]');
       if (item) {
+        if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+          return;
+        }
         commitInlineEditor();
         const targetId = item.getAttribute('data-map-id');
-        store.setActiveMap(targetId);
-        touchRecentMap(targetId);
-        const activeMap = store.getMap();
-        if (activeMap) {
-          document.title = (activeMap.title ? `${activeMap.title} – EduMap` : 'EduMap');
-          selectedId = activeMap.root.id;
-          selectedLinkId = null;
-          refreshAll(true);
-        }
+        openMapInEditor(targetId);
       }
     });
 

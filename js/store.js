@@ -377,7 +377,54 @@
       this.persist(false);
     }
 
+    reloadExternalMaps() {
+      try {
+        const cache = this.readCache(this.scope);
+        if (!cache || !Array.isArray(cache.maps)) return false;
+
+        const currentId = this.activeId;
+        const currentActiveMap = this.maps.find((m) => m.id === currentId);
+
+        const newMaps = [];
+        const seen = new Set();
+
+        for (const extMap of cache.maps) {
+          if (extMap.id === currentId && currentActiveMap) {
+            if (extMap.updatedAt > (currentActiveMap.updatedAt || 0)) {
+              newMaps.push(extMap);
+            } else {
+              newMaps.push(currentActiveMap);
+            }
+          } else {
+            newMaps.push(extMap);
+          }
+          seen.add(extMap.id);
+        }
+
+        if (currentActiveMap && !seen.has(currentId)) {
+          newMaps.unshift(currentActiveMap);
+        }
+
+        this.maps = newMaps;
+        if (Array.isArray(cache.folders)) {
+          this.folders = cache.folders;
+        }
+        if (cache.meta) {
+          this.meta = {
+            dirty: Array.from(new Set([...(this.meta.dirty || []), ...(cache.meta.dirty || [])])),
+            deleted: [...(cache.meta.deleted || [])],
+            foldersDirty: Boolean(this.meta.foldersDirty || cache.meta.foldersDirty)
+          };
+        }
+        return true;
+      } catch (e) {
+        console.warn('reloadExternalMaps error:', e);
+        return false;
+      }
+    }
+
     persist(touchTime = true) {
+      this.reloadExternalMaps();
       const current = this.getMap();
       if (current && touchTime) {
         current.updatedAt = Date.now();

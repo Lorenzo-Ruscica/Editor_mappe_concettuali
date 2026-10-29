@@ -75,7 +75,7 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.
 .icon-btn, .tool-btn {
   height: 36px; min-width: 36px; border: none; background: transparent; border-radius: 8px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #334155; padding: 0 8px;
-  transition: background .12s, color .12s; white-space: nowrap;
+  transition: background .12s, color .12s; white-space: nowrap; text-decoration: none;
 }
 .icon-btn { padding: 0; }
 .icon-btn:hover, .tool-btn:hover { background: #f1f5f9; color: #0f172a; }
@@ -95,6 +95,7 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.
   display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px;
   border: 1px solid var(--border-strong); background: #fff; border-radius: 9px; cursor: pointer; font-weight: 600;
   font-size: 13px; color: #1f2937; transition: background .12s, border-color .12s, box-shadow .12s; white-space: nowrap;
+  text-decoration: none;
 }
 .btn:hover { background: #f8fafc; border-color: #b8c2d1; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 1px 2px rgba(37, 99, 235, .3); }
@@ -141,17 +142,18 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.
 }
 .mi:hover { background: #fff; border-color: #cbd5e1; box-shadow: 0 3px 8px rgba(15, 23, 42, .06); }
 .mi.active { background: var(--primary-50); border-color: #93c5fd; box-shadow: 0 2px 6px rgba(37, 99, 235, .1); }
-.mi-t { font-weight: 700; font-size: 13.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 84px; }
+.mi-main { text-decoration: none; color: inherit; display: block; }
+.mi-t { font-weight: 700; font-size: 13.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 114px; }
 .mi.active .mi-t { color: #1e40af; }
 .mi-d { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .mi-act { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: none; gap: 3px; }
 .mi:hover .mi-act, .mi.active .mi-act { display: flex; }
-.mi-act button {
+.mi-act button, .mi-act a.mi-act-btn {
   width: 26px; height: 26px; border: 1px solid transparent; background: rgba(255, 255, 255, .85);
   border-radius: 7px; cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center;
-  transition: background .12s, color .12s, border-color .12s;
+  transition: background .12s, color .12s, border-color .12s; text-decoration: none;
 }
-.mi-act button:hover { background: #fff; border-color: var(--border); color: var(--primary); }
+.mi-act button:hover, .mi-act a.mi-act-btn:hover { background: #fff; border-color: var(--border); color: var(--primary); }
 .mi-act button.del:hover { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
 .mi-act .ic { width: 14px; height: 14px; }
 .sb-foot {
@@ -662,6 +664,8 @@ select.pp-input { cursor: pointer; }
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
 }
 .mc-preview > svg { width: 100%; height: 100%; pointer-events: none; }
 .mc-folder-pill {
@@ -676,6 +680,8 @@ select.pp-input { cursor: pointer; }
 .mc-title {
   font-size: 15px; font-weight: 700; color: #0f172a; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: none;
+  display: block;
 }
 .mc-title:hover { color: var(--primary); }
 .mc-meta { font-size: 12px; color: var(--muted); }
