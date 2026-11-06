@@ -143,7 +143,7 @@ code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.
 .mi:hover { background: #fff; border-color: #cbd5e1; box-shadow: 0 3px 8px rgba(15, 23, 42, .06); }
 .mi.active { background: var(--primary-50); border-color: #93c5fd; box-shadow: 0 2px 6px rgba(37, 99, 235, .1); }
 .mi-main { text-decoration: none; color: inherit; display: block; }
-.mi-t { font-weight: 700; font-size: 13.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 114px; }
+.mi-t { font-weight: 700; font-size: 13.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 84px; }
 .mi.active .mi-t { color: #1e40af; }
 .mi-d { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 .mi-act { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: none; gap: 3px; }
@@ -554,6 +554,7 @@ select.pp-input { cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0;
 }
 .hac-top { display: flex; align-items: center; gap: 11px; }
 .hac-avatar {
@@ -576,10 +577,12 @@ select.pp-input { cursor: pointer; }
   display: flex; align-items: center; justify-content: space-between;
   font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
   padding: 0 4px;
+  flex-shrink: 0;
 }
 .hf-new-form {
   background: #f8fafc; border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px;
   display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
 }
 .hf-new-row {
   display: flex; flex-direction: column; gap: 10px; width: 100%;
@@ -597,11 +600,11 @@ select.pp-input { cursor: pointer; }
 }
 .hf-new-btns .btn { width: 100%; justify-content: center; }
 
-.hf-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+.hf-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .hf-item {
   display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px;
   cursor: pointer; font-size: 13.5px; font-weight: 500; color: #334155; border: 1px solid transparent;
-  user-select: none;
+  user-select: none; flex-shrink: 0;
 }
 .hf-item:hover { background: #f1f5f9; }
 .hf-item.active { background: var(--primary-50); border-color: #bfdbfe; color: #1e40af; font-weight: 700; }

@@ -783,7 +783,6 @@
             </div>
             <div class="mc-actions">
               <a href="${escapeHtml(mapUrl)}" class="btn primary small mc-desktop-only" draggable="false" data-open-map="${escapeHtml(m.id)}">Apri</a>
-              <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener" class="icon-btn mc-desktop-only" draggable="false" data-open-newtab title="Apri in una nuova scheda">${svgIcon('externalLink', 16)}</a>
               <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
               <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
               <button type="button" class="icon-btn mc-desktop-only" data-dup-map="${escapeHtml(m.id)}" title="Duplica mappa">${svgIcon('copy', 16)}</button>
@@ -1000,10 +999,6 @@
         return;
       }
 
-      if (e.target.closest('[data-open-newtab]')) {
-        return;
-      }
-
       const openEl = e.target.closest('[data-open-map]');
       if (openEl) {
         if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
@@ -1021,6 +1016,7 @@
 
       const renBtn = e.target.closest('[data-rename-map]');
       if (renBtn) {
+        e.stopPropagation();
         const id = renBtn.getAttribute('data-rename-map');
         const m = store.maps.find((x) => x.id === id);
         if (!m) return;
@@ -1041,6 +1037,7 @@
 
       const dupBtn = e.target.closest('[data-dup-map]');
       if (dupBtn) {
+        e.stopPropagation();
         if (isMobileMode()) {
           showToast('La creazione di mappe è disponibile solo da computer.');
           return;
@@ -1057,6 +1054,7 @@
 
       const delBtn = e.target.closest('[data-del-map]');
       if (delBtn) {
+        e.stopPropagation();
         const id = delBtn.getAttribute('data-del-map');
         const m = store.maps.find((x) => x.id === id);
         if (!m) return;
@@ -1822,7 +1820,6 @@
               <div class="mi-d">${count} concett${count === 1 ? 'o' : 'i'} · ${formatDate(m.updatedAt)}</div>
             </a>
             <div class="mi-act">
-              <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener" class="mi-act-btn" data-map-newtab title="Apri in una nuova scheda">${svgIcon('externalLink', 14)}</a>
               <button type="button" data-map-dl="${m.id}" title="Scarica subito PDF">${svgIcon('download', 15)}</button>
               <button type="button" data-map-dup="${m.id}" title="Duplica mappa">${svgIcon('copy', 15)}</button>
               <button type="button" class="del" data-map-del="${m.id}" title="Elimina mappa">${svgIcon('trash', 15)}</button>
@@ -2933,11 +2930,6 @@
             showToast('Mappa eliminata.');
           });
         }
-        return;
-      }
-
-      const newTabBtn = e.target.closest('[data-map-newtab]');
-      if (newTabBtn) {
         return;
       }
 
