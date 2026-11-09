@@ -156,7 +156,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="css/style.css?v=1.2">
+  <link rel="stylesheet" href="css/style.css?v=1.3">
 </head>
 <body>
 <noscript>
@@ -233,12 +233,25 @@
           <input type="text" class="pp-input" id="home-new-folder-name" placeholder="Nome cartella (es. Storia)" maxlength="60" autocomplete="off">
           <div class="hf-new-row">
             <div class="hf-colors" id="home-new-folder-colors">
-              <button type="button" class="hf-col active" data-color="#2563eb" style="background:#2563eb"></button>
-              <button type="button" class="hf-col" data-color="#10b981" style="background:#10b981"></button>
-              <button type="button" class="hf-col" data-color="#f59e0b" style="background:#f59e0b"></button>
-              <button type="button" class="hf-col" data-color="#ef4444" style="background:#ef4444"></button>
-              <button type="button" class="hf-col" data-color="#8b5cf6" style="background:#8b5cf6"></button>
-              <button type="button" class="hf-col" data-color="#ec4899" style="background:#ec4899"></button>
+              <button type="button" class="hf-col active" data-color="#2563eb" style="background:#2563eb" title="Blu"></button>
+              <button type="button" class="hf-col" data-color="#0284c7" style="background:#0284c7" title="Azzurro"></button>
+              <button type="button" class="hf-col" data-color="#06b6d4" style="background:#06b6d4" title="Ciano"></button>
+              <button type="button" class="hf-col" data-color="#0d9488" style="background:#0d9488" title="Ottanio"></button>
+              <button type="button" class="hf-col" data-color="#10b981" style="background:#10b981" title="Smeraldo"></button>
+              <button type="button" class="hf-col" data-color="#16a34a" style="background:#16a34a" title="Verde"></button>
+              <button type="button" class="hf-col" data-color="#65a30d" style="background:#65a30d" title="Lime"></button>
+              <button type="button" class="hf-col" data-color="#eab308" style="background:#eab308" title="Giallo"></button>
+              <button type="button" class="hf-col" data-color="#f59e0b" style="background:#f59e0b" title="Ambra"></button>
+              <button type="button" class="hf-col" data-color="#ea580c" style="background:#ea580c" title="Arancione"></button>
+              <button type="button" class="hf-col" data-color="#ef4444" style="background:#ef4444" title="Rosso"></button>
+              <button type="button" class="hf-col" data-color="#e11d48" style="background:#e11d48" title="Cremisi"></button>
+              <button type="button" class="hf-col" data-color="#ec4899" style="background:#ec4899" title="Rosa"></button>
+              <button type="button" class="hf-col" data-color="#d946ef" style="background:#d946ef" title="Fucsia"></button>
+              <button type="button" class="hf-col" data-color="#8b5cf6" style="background:#8b5cf6" title="Viola"></button>
+              <button type="button" class="hf-col" data-color="#6366f1" style="background:#6366f1" title="Indaco"></button>
+              <button type="button" class="hf-col" data-color="#78350f" style="background:#78350f" title="Marrone"></button>
+              <button type="button" class="hf-col" data-color="#475569" style="background:#475569" title="Ardesia"></button>
+              <label class="hf-col hf-col-custom" title="Colore personalizzato">+<input type="color" id="home-new-folder-custom-color" value="#2563eb"></label>
             </div>
             <div class="hf-new-btns">
               <button type="submit" class="btn primary small">Crea</button>
@@ -264,8 +277,11 @@
           <span class="hmb-count" id="home-view-count">0 mappe</span>
         </div>
         <div class="hmb-right" id="home-folder-actions" hidden>
-          <button type="button" class="btn small" id="home-rename-folder" data-icon="edit"><span>Rinomina cartella</span></button>
+          <button type="button" class="btn small" id="home-rename-folder" data-icon="edit"><span>Modifica cartella</span></button>
           <button type="button" class="btn small danger" id="home-delete-folder" data-icon="trash"><span>Elimina cartella</span></button>
+        </div>
+        <div class="hmb-right" id="home-trash-actions" hidden>
+          <button type="button" class="btn small danger" id="home-empty-trash" data-icon="trash"><span>Svuota cestino</span></button>
         </div>
       </div>
 
@@ -629,6 +645,30 @@ Il sistema solare
         <div id="dlg-input-wrap" hidden>
           <input type="text" class="pp-input" id="dlg-input" maxlength="120" autocomplete="off">
         </div>
+        <div id="dlg-color-wrap" class="dlg-color-wrap" hidden>
+          <div class="dlg-color-label">Colore della cartella:</div>
+          <div class="hf-colors dlg-colors" id="dlg-folder-colors">
+            <button type="button" class="hf-col" data-color="#2563eb" style="background:#2563eb" title="Blu"></button>
+            <button type="button" class="hf-col" data-color="#0284c7" style="background:#0284c7" title="Azzurro"></button>
+            <button type="button" class="hf-col" data-color="#06b6d4" style="background:#06b6d4" title="Ciano"></button>
+            <button type="button" class="hf-col" data-color="#0d9488" style="background:#0d9488" title="Ottanio"></button>
+            <button type="button" class="hf-col" data-color="#10b981" style="background:#10b981" title="Smeraldo"></button>
+            <button type="button" class="hf-col" data-color="#16a34a" style="background:#16a34a" title="Verde"></button>
+            <button type="button" class="hf-col" data-color="#65a30d" style="background:#65a30d" title="Lime"></button>
+            <button type="button" class="hf-col" data-color="#eab308" style="background:#eab308" title="Giallo"></button>
+            <button type="button" class="hf-col" data-color="#f59e0b" style="background:#f59e0b" title="Ambra"></button>
+            <button type="button" class="hf-col" data-color="#ea580c" style="background:#ea580c" title="Arancione"></button>
+            <button type="button" class="hf-col" data-color="#ef4444" style="background:#ef4444" title="Rosso"></button>
+            <button type="button" class="hf-col" data-color="#e11d48" style="background:#e11d48" title="Cremisi"></button>
+            <button type="button" class="hf-col" data-color="#ec4899" style="background:#ec4899" title="Rosa"></button>
+            <button type="button" class="hf-col" data-color="#d946ef" style="background:#d946ef" title="Fucsia"></button>
+            <button type="button" class="hf-col" data-color="#8b5cf6" style="background:#8b5cf6" title="Viola"></button>
+            <button type="button" class="hf-col" data-color="#6366f1" style="background:#6366f1" title="Indaco"></button>
+            <button type="button" class="hf-col" data-color="#78350f" style="background:#78350f" title="Marrone"></button>
+            <button type="button" class="hf-col" data-color="#475569" style="background:#475569" title="Ardesia"></button>
+            <label class="hf-col hf-col-custom" title="Colore personalizzato">+<input type="color" id="dlg-folder-custom-color" value="#2563eb"></label>
+          </div>
+        </div>
       </div>
       <div class="modal-f">
         <button type="button" class="btn" id="dlg-cancel">Annulla</button>
@@ -655,6 +695,6 @@ Il sistema solare
 <script src="js/layout.js"></script>
 <script src="js/render.js"></script>
 <script src="js/exporter.js"></script>
-<script src="js/app.js?v=1.2"></script>
+<script src="js/app.js?v=1.3"></script>
 </body>
 </html>

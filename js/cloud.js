@@ -186,7 +186,8 @@
         style: map.style,
         root: map.root,
         links: map.links || [],
-        folderId: map.folderId || ''
+        folderId: map.folderId || '',
+        trashedAt: Number(map.trashedAt) > 0 ? Number(map.trashedAt) : 0
       },
       updated_at: new Date(map.updatedAt || Date.now()).toISOString(),
       deleted_at: null
@@ -199,6 +200,7 @@
       id: row.id,
       title: row.title,
       folderId: data.folderId || '',
+      trashedAt: Number(data.trashedAt) > 0 ? Number(data.trashedAt) : 0,
       updatedAt: Date.parse(row.updated_at) || Date.now(),
       layout: data.layout,
       style: data.style,

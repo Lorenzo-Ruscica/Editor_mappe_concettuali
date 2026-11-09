@@ -200,6 +200,7 @@
     homeNewFolderForm: document.getElementById('home-new-folder-form'),
     homeNewFolderName: document.getElementById('home-new-folder-name'),
     homeNewFolderColors: document.getElementById('home-new-folder-colors'),
+    homeNewFolderCustomColor: document.getElementById('home-new-folder-custom-color'),
     homeCancelFolder: document.getElementById('home-cancel-folder'),
     homeFolderList: document.getElementById('home-folder-list'),
     homeViewTitle: document.getElementById('home-view-title'),
@@ -207,6 +208,8 @@
     homeFolderActions: document.getElementById('home-folder-actions'),
     homeRenameFolder: document.getElementById('home-rename-folder'),
     homeDeleteFolder: document.getElementById('home-delete-folder'),
+    homeTrashActions: document.getElementById('home-trash-actions'),
+    homeEmptyTrash: document.getElementById('home-empty-trash'),
     homeMapGrid: document.getElementById('home-map-grid'),
 
     // Internal Confirm / Prompt Dialog
@@ -217,17 +220,57 @@
     dlgMsg: document.getElementById('dlg-msg'),
     dlgInputWrap: document.getElementById('dlg-input-wrap'),
     dlgInput: document.getElementById('dlg-input'),
+    dlgColorWrap: document.getElementById('dlg-color-wrap'),
+    dlgFolderColors: document.getElementById('dlg-folder-colors'),
+    dlgFolderCustomColor: document.getElementById('dlg-folder-custom-color'),
     dlgCancel: document.getElementById('dlg-cancel'),
     dlgOk: document.getElementById('dlg-ok')
   };
 
+  const FOLDER_COLOR_PALETTE = [
+    '#2563eb', '#0284c7', '#06b6d4', '#0d9488', '#10b981', '#16a34a',
+    '#65a30d', '#eab308', '#f59e0b', '#ea580c', '#ef4444', '#e11d48',
+    '#ec4899', '#d946ef', '#8b5cf6', '#6366f1', '#78350f', '#475569'
+  ];
+
   let authTab = 'login'; // 'login' | 'signup' | 'reset'
   let authRecoveryMode = false;
-  let activeFolderFilter = 'all'; // 'all' | <folder.id>
+  let activeFolderFilter = 'all'; // 'all' | 'trash' | <folder.id>
   let newFolderColor = '#2563eb';
+  let dlgSelectedColor = '#2563eb';
   let draggedMapCardId = null;
   let activeDialogResolve = null;
   let exportTargetMapId = null;
+
+  function syncColorSwatchGroup(container, customInput, selectedColor) {
+    if (!container) return;
+    const norm = String(selectedColor || '#2563eb').toLowerCase();
+    let matched = false;
+    container.querySelectorAll('.hf-col[data-color]').forEach((btn) => {
+      const c = (btn.getAttribute('data-color') || '').toLowerCase();
+      const isMatch = c === norm;
+      if (isMatch) matched = true;
+      btn.classList.toggle('active', isMatch);
+    });
+    const customLabel = container.querySelector('.hf-col-custom');
+    if (customLabel) {
+      customLabel.classList.toggle('active', !matched);
+      if (!matched) {
+        customLabel.style.background = norm;
+      } else {
+        customLabel.style.background = '';
+      }
+    }
+    if (customInput) customInput.value = norm.startsWith('#') && norm.length === 7 ? norm : '#2563eb';
+  }
+
+  function pickNextUnusedFolderColor() {
+    const used = new Set((store.folders || []).map((f) => String(f.color || '').toLowerCase()));
+    for (const c of FOLDER_COLOR_PALETTE) {
+      if (!used.has(c.toLowerCase())) return c;
+    }
+    return FOLDER_COLOR_PALETTE[(store.folders?.length || 0) % FOLDER_COLOR_PALETTE.length];
+  }
 
   function updateMapTitleInput(title) {
     if (!dom.mapTitle) return;
@@ -290,6 +333,7 @@
         dom.dlgMsg.hidden = !message;
       }
       if (dom.dlgInputWrap) dom.dlgInputWrap.hidden = true;
+      if (dom.dlgColorWrap) dom.dlgColorWrap.hidden = true;
       if (dom.dlgOk) {
         dom.dlgOk.textContent = confirmText;
         dom.dlgOk.className = danger ? 'btn danger-solid' : 'btn primary';
@@ -322,12 +366,56 @@
         dom.dlgMsg.hidden = !message;
       }
       if (dom.dlgInputWrap) dom.dlgInputWrap.hidden = false;
+      if (dom.dlgColorWrap) dom.dlgColorWrap.hidden = true;
       if (dom.dlgInput) {
         dom.dlgInput.value = defaultValue || '';
         dom.dlgInput.placeholder = placeholder || '';
       }
       if (dom.dlgOk) {
         dom.dlgOk.textContent = confirmText;
+        dom.dlgOk.className = 'btn primary';
+      }
+      if (dom.modalDialog) dom.modalDialog.hidden = false;
+      setTimeout(() => {
+        dom.dlgInput?.focus();
+        dom.dlgInput?.select();
+      }, 20);
+    });
+  }
+
+  function openFolderEditDialog(folder) {
+    if (!folder) return Promise.resolve(null);
+    if (activeDialogResolve) closeInternalDialog(null);
+    return new Promise((resolve) => {
+      dlgSelectedColor = folder.color || '#2563eb';
+      syncColorSwatchGroup(dom.dlgFolderColors, dom.dlgFolderCustomColor, dlgSelectedColor);
+
+      activeDialogResolve = (ok) => {
+        if (!ok) {
+          resolve(null);
+          return;
+        }
+        const name = (dom.dlgInput?.value || '').trim();
+        if (!name) {
+          resolve(null);
+          return;
+        }
+        resolve({ name, color: dlgSelectedColor });
+      };
+
+      if (dom.dlgTitle) dom.dlgTitle.textContent = 'Modifica cartella';
+      if (dom.dlgMsg) {
+        dom.dlgMsg.textContent = 'Nome della cartella:';
+        dom.dlgMsg.hidden = false;
+      }
+      if (dom.dlgInputWrap) dom.dlgInputWrap.hidden = false;
+      if (dom.dlgInput) {
+        dom.dlgInput.value = folder.name || '';
+        dom.dlgInput.placeholder = 'Nome cartella (es. Storia)';
+      }
+      if (dom.dlgColorWrap) dom.dlgColorWrap.hidden = false;
+      if (dom.dlgOk) {
+        dom.dlgOk.textContent = 'Salva modifiche';
         dom.dlgOk.className = 'btn primary';
       }
       if (dom.modalDialog) dom.modalDialog.hidden = false;
@@ -471,7 +559,8 @@
   }
 
   function getRecentMaps() {
-    const byId = new Map(store.maps.map((m) => [m.id, m]));
+    const activeMaps = store.getActiveMaps();
+    const byId = new Map(activeMaps.map((m) => [m.id, m]));
     const ids = getRecentMapIds();
     if (store.activeId && !ids.includes(store.activeId)) {
       ids.unshift(store.activeId);
@@ -584,19 +673,24 @@
   function renderHomeScreen() {
     if (!dom.homeScreen) return;
     const mobile = syncMobileMode();
+    store.purgeExpiredTrash(true);
 
     // Se la cartella selezionata non esiste più, torniamo a "Tutte le mappe"
     if (
       activeFolderFilter !== 'all' &&
+      activeFolderFilter !== 'trash' &&
       !store.folders.some((f) => f.id === activeFolderFilter)
     ) {
       activeFolderFilter = 'all';
     }
 
+    const activeMaps = store.getActiveMaps();
+    const trashedMaps = store.getTrashedMaps();
+    const isTrashView = activeFolderFilter === 'trash';
     const folderById = new Map(store.folders.map((f) => [f.id, f]));
-    const totalCount = store.maps.length;
+    const totalCount = activeMaps.length;
 
-    // 1. Elenco cartelle nella sidebar ("Tutte le mappe" + cartelle create dall'utente)
+    // 1. Elenco cartelle nella sidebar ("Tutte le mappe" + cartelle utente + "Cestino")
     const folderItems = [
       `
         <div class="hf-item${activeFolderFilter === 'all' ? ' active' : ''}" data-folder-filter="all" data-drop-folder="">
@@ -608,35 +702,53 @@
     ];
 
     for (const f of store.folders) {
-      const cnt = store.maps.filter((m) => m.folderId === f.id).length;
+      const cnt = activeMaps.filter((m) => m.folderId === f.id).length;
       const isAct = activeFolderFilter === f.id ? ' active' : '';
       folderItems.push(`
         <div class="hf-item${isAct}" data-folder-filter="${escapeHtml(f.id)}" data-drop-folder="${escapeHtml(f.id)}">
           <span class="hf-ic" style="color:${escapeHtml(f.color)}">${svgIcon('folder', 17)}</span>
           <span class="hf-name">${escapeHtml(f.name)}</span>
+          <button type="button" class="hf-edit-btn" data-edit-folder="${escapeHtml(f.id)}" title="Modifica nome e colore">${svgIcon('edit', 14)}</button>
           <span class="hf-badge">${cnt}</span>
         </div>
       `);
     }
 
+    folderItems.push(`
+      <div class="hf-sep"></div>
+      <div class="hf-item hf-item-trash${isTrashView ? ' active' : ''}" data-folder-filter="trash" data-drop-trash="true">
+        <span class="hf-ic">${svgIcon('trash', 17)}</span>
+        <span class="hf-name">Cestino</span>
+        <span class="hf-badge">${trashedMaps.length}</span>
+      </div>
+    `);
+
     if (dom.homeFolderList) {
       dom.homeFolderList.innerHTML = folderItems.join('');
     }
 
-    // 2. Intestazione vista corrente e pulsanti gestione cartella
+    // 2. Intestazione vista corrente e pulsanti gestione cartella / cestino
     const activeFolderObj = folderById.get(activeFolderFilter) || null;
     if (dom.homeViewTitle) {
       dom.homeViewTitle.textContent =
-        activeFolderFilter === 'all' ? 'Tutte le mappe' : activeFolderObj?.name || 'Cartella';
+        activeFolderFilter === 'all'
+          ? 'Tutte le mappe'
+          : isTrashView
+          ? 'Cestino'
+          : activeFolderObj?.name || 'Cartella';
     }
     if (dom.homeFolderActions) {
       dom.homeFolderActions.hidden = !activeFolderObj;
     }
+    if (dom.homeTrashActions) {
+      dom.homeTrashActions.hidden = !isTrashView || trashedMaps.length === 0;
+    }
 
-    // 3. Filtra mappe per cartella e ricerca
+    // 3. Filtra mappe per cartella / cestino e ricerca
     const query = (dom.homeSearch?.value || '').trim().toLowerCase();
-    const filtered = store.maps.filter((m) => {
-      if (activeFolderFilter !== 'all') {
+    const sourceList = isTrashView ? trashedMaps : activeMaps;
+    const filtered = sourceList.filter((m) => {
+      if (!isTrashView && activeFolderFilter !== 'all') {
         if (m.folderId !== activeFolderFilter) return false;
       }
       if (query) {
@@ -647,7 +759,11 @@
     });
 
     if (dom.homeViewCount) {
-      dom.homeViewCount.textContent = `${filtered.length} mapp${filtered.length === 1 ? 'a' : 'e'}`;
+      if (isTrashView) {
+        dom.homeViewCount.textContent = `${filtered.length} mapp${filtered.length === 1 ? 'a' : 'e'} · conservate per 30 giorni`;
+      } else {
+        dom.homeViewCount.textContent = `${filtered.length} mapp${filtered.length === 1 ? 'a' : 'e'}`;
+      }
     }
 
     // 4. Griglia mappe o stato vuoto
@@ -656,6 +772,20 @@
     if (filtered.length === 0) {
       const isSearch = Boolean(query);
       const isLoggedIn = Boolean(window.CMCloud && window.CMCloud.isLoggedIn());
+      if (isTrashView) {
+        dom.homeMapGrid.innerHTML = `
+          <div class="home-empty">
+            <div class="he-icon">${svgIcon('trash', 28)}</div>
+            <h2>${isSearch ? 'Nessuna mappa trovata nel cestino' : 'Il cestino è vuoto'}</h2>
+            <p>${
+              isSearch
+                ? 'Prova a cercare con un altro termine oppure azzera la barra di ricerca.'
+                : 'Le mappe che elimini restano nel cestino per 30 giorni: da qui puoi ripristinarle in qualsiasi momento oppure cancellarle definitivamente.'
+            }</p>
+          </div>
+        `;
+        return;
+      }
       if (mobile) {
         dom.homeMapGrid.innerHTML = `
           <div class="home-empty">
@@ -720,6 +850,8 @@
       return opts.join('');
     };
 
+    const retentionMs = window.CMStore.TRASH_RETENTION_MS || 30 * 24 * 60 * 60 * 1000;
+
     dom.homeMapGrid.innerHTML = filtered
       .map((m) => {
         const count = countNodesInTree(m.root);
@@ -738,6 +870,28 @@
           : '';
 
         const mapUrl = getMapUrl(m.id);
+
+        if (isTrashView) {
+          const elapsed = Math.max(0, Date.now() - (m.trashedAt || Date.now()));
+          const daysLeft = Math.max(1, Math.ceil((retentionMs - elapsed) / (24 * 60 * 60 * 1000)));
+          return `
+            <article class="map-card" data-card-map-id="${escapeHtml(m.id)}">
+              <div class="mc-preview" style="background:${escapeHtml(theme.bg)};cursor:default">
+                ${pillHtml}
+                <div class="mc-trash-pill" title="Giorni rimanenti prima dell'eliminazione automatica">${daysLeft}g rimasti</div>
+                <svg viewBox="${viewBoxAttr}" preserveAspectRatio="xMidYMid meet">${previewInner}</svg>
+              </div>
+              <div class="mc-body">
+                <div class="mc-title" style="cursor:default" title="${escapeHtml(m.title)}">${escapeHtml(m.title || 'Senza titolo')}</div>
+                <div class="mc-meta">${count} concett${count === 1 ? 'o' : 'i'} · Eliminata ${formatDate(m.trashedAt)}</div>
+              </div>
+              <div class="mc-actions">
+                <button type="button" class="btn primary small" data-restore-map="${escapeHtml(m.id)}" title="Ripristina mappa">${svgIcon('undo', 15)}<span>Ripristina</span></button>
+                <button type="button" class="btn small danger" data-purge-map="${escapeHtml(m.id)}" title="Elimina definitivamente">${svgIcon('trash', 15)}<span>Elimina del tutto</span></button>
+              </div>
+            </article>
+          `;
+        }
 
         if (mobile) {
           return `
@@ -759,12 +913,11 @@
               <div class="mc-actions">
                 <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
                 <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
-                <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Elimina mappa">${svgIcon('trash', 16)}</button>
+                <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Sposta nel cestino">${svgIcon('trash', 16)}</button>
               </div>
             </article>
           `;
         }
-
         return `
           <article class="map-card" draggable="true" data-card-map-id="${escapeHtml(m.id)}">
             <a href="${escapeHtml(mapUrl)}" class="mc-preview" draggable="false" data-open-map="${escapeHtml(m.id)}" style="background:${escapeHtml(theme.bg)}">
@@ -786,7 +939,7 @@
               <button type="button" class="btn small mc-dl-action" data-quick-download="${escapeHtml(m.id)}" title="Scarica subito in PDF">${svgIcon('download', 15)}<span>Scarica</span></button>
               <button type="button" class="icon-btn" data-rename-map="${escapeHtml(m.id)}" title="Rinomina mappa">${svgIcon('edit', 16)}</button>
               <button type="button" class="icon-btn mc-desktop-only" data-dup-map="${escapeHtml(m.id)}" title="Duplica mappa">${svgIcon('copy', 16)}</button>
-              <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Elimina mappa">${svgIcon('trash', 16)}</button>
+              <button type="button" class="icon-btn" style="color:var(--danger)" data-del-map="${escapeHtml(m.id)}" title="Sposta nel cestino">${svgIcon('trash', 16)}</button>
             </div>
           </article>
         `;
@@ -847,6 +1000,8 @@
       if (!dom.homeNewFolderForm) return;
       dom.homeNewFolderForm.hidden = !dom.homeNewFolderForm.hidden;
       if (!dom.homeNewFolderForm.hidden) {
+        newFolderColor = pickNextUnusedFolderColor();
+        syncColorSwatchGroup(dom.homeNewFolderColors, dom.homeNewFolderCustomColor, newFolderColor);
         dom.homeNewFolderName.value = '';
         dom.homeNewFolderName.focus();
       }
@@ -860,9 +1015,24 @@
       const btn = e.target.closest('[data-color]');
       if (!btn) return;
       newFolderColor = btn.getAttribute('data-color') || '#2563eb';
-      dom.homeNewFolderColors.querySelectorAll('.hf-col').forEach((b) => {
-        b.classList.toggle('active', b === btn);
-      });
+      syncColorSwatchGroup(dom.homeNewFolderColors, dom.homeNewFolderCustomColor, newFolderColor);
+    });
+
+    dom.homeNewFolderCustomColor?.addEventListener('input', (e) => {
+      newFolderColor = e.target.value || '#2563eb';
+      syncColorSwatchGroup(dom.homeNewFolderColors, dom.homeNewFolderCustomColor, newFolderColor);
+    });
+
+    dom.dlgFolderColors?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-color]');
+      if (!btn) return;
+      dlgSelectedColor = btn.getAttribute('data-color') || '#2563eb';
+      syncColorSwatchGroup(dom.dlgFolderColors, dom.dlgFolderCustomColor, dlgSelectedColor);
+    });
+
+    dom.dlgFolderCustomColor?.addEventListener('input', (e) => {
+      dlgSelectedColor = e.target.value || '#2563eb';
+      syncColorSwatchGroup(dom.dlgFolderColors, dom.dlgFolderCustomColor, dlgSelectedColor);
     });
 
     dom.homeNewFolderForm?.addEventListener('submit', (e) => {
@@ -882,8 +1052,25 @@
       }
     });
 
-    // Selezione cartella e drag & drop di una mappa sopra una cartella
+    async function handleEditFolder(folderId) {
+      const f = store.folders.find((x) => x.id === folderId);
+      if (!f) return;
+      const res = await openFolderEditDialog(f);
+      if (res && res.name) {
+        store.updateFolder(f.id, { name: res.name, color: res.color });
+        renderHomeScreen();
+        showToast('Cartella aggiornata!', 'ok');
+      }
+    }
+
+    // Selezione cartella / modifica rapida e drag & drop di una mappa sopra una cartella o il cestino
     dom.homeFolderList?.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('[data-edit-folder]');
+      if (editBtn) {
+        e.stopPropagation();
+        handleEditFolder(editBtn.getAttribute('data-edit-folder'));
+        return;
+      }
       const item = e.target.closest('[data-folder-filter]');
       if (!item) return;
       activeFolderFilter = item.getAttribute('data-folder-filter') || 'all';
@@ -891,22 +1078,30 @@
     });
 
     dom.homeFolderList?.addEventListener('dragover', (e) => {
-      const dropTarget = e.target.closest('[data-drop-folder]');
+      const dropTarget = e.target.closest('[data-drop-folder], [data-drop-trash]');
       if (!dropTarget || !draggedMapCardId) return;
       e.preventDefault();
       dropTarget.classList.add('drop-over');
     });
 
     dom.homeFolderList?.addEventListener('dragleave', (e) => {
-      const dropTarget = e.target.closest('[data-drop-folder]');
+      const dropTarget = e.target.closest('[data-drop-folder], [data-drop-trash]');
       if (dropTarget) dropTarget.classList.remove('drop-over');
     });
 
     dom.homeFolderList?.addEventListener('drop', (e) => {
-      const dropTarget = e.target.closest('[data-drop-folder]');
+      const dropTarget = e.target.closest('[data-drop-folder], [data-drop-trash]');
       if (!dropTarget || !draggedMapCardId) return;
       e.preventDefault();
       dropTarget.classList.remove('drop-over');
+      if (dropTarget.hasAttribute('data-drop-trash')) {
+        store.deleteMap(draggedMapCardId);
+        draggedMapCardId = null;
+        renderHomeScreen();
+        renderSidebarList();
+        showToast('Mappa spostata nel cestino (30 giorni).');
+        return;
+      }
       const folderId = dropTarget.getAttribute('data-drop-folder') || '';
       store.setMapFolder(draggedMapCardId, folderId);
       draggedMapCardId = null;
@@ -914,7 +1109,7 @@
       showToast(folderId ? 'Mappa spostata nella cartella!' : 'Mappa rimossa dalla cartella.');
     });
 
-    // Dialogo interno (conferma / rinomina)
+    // Dialogo interno (conferma / rinomina / modifica cartella)
     dom.dlgClose?.addEventListener('click', () => closeInternalDialog(false));
     dom.dlgCancel?.addEventListener('click', () => closeInternalDialog(false));
     dom.modalDialog?.addEventListener('click', (e) => {
@@ -925,22 +1120,10 @@
       closeInternalDialog(true);
     });
 
-    // Rinomina / Elimina cartella selezionata
-    dom.homeRenameFolder?.addEventListener('click', async () => {
+    // Modifica / Elimina cartella selezionata
+    dom.homeRenameFolder?.addEventListener('click', () => {
       const folderId = currentRealFolderId();
-      const f = store.folders.find((x) => x.id === folderId);
-      if (!f) return;
-      const next = await openPromptDialog({
-        title: 'Rinomina cartella',
-        message: 'Inserisci il nuovo nome della cartella:',
-        defaultValue: f.name,
-        confirmText: 'Salva'
-      });
-      if (next && next.trim()) {
-        store.renameFolder(f.id, next.trim());
-        renderHomeScreen();
-        showToast('Cartella rinominata.');
-      }
+      if (folderId) handleEditFolder(folderId);
     });
 
     dom.homeDeleteFolder?.addEventListener('click', async () => {
@@ -958,6 +1141,23 @@
       activeFolderFilter = 'all';
       renderHomeScreen();
       showToast('Cartella eliminata.');
+    });
+
+    // Svuota cestino
+    dom.homeEmptyTrash?.addEventListener('click', async () => {
+      const trashed = store.getTrashedMaps();
+      if (trashed.length === 0) return;
+      const ok = await openConfirmDialog({
+        title: 'Svuota cestino',
+        message: `Vuoi eliminare definitivamente tutte le ${trashed.length} mappe presenti nel cestino? Questa operazione non può essere annullata.`,
+        confirmText: 'Svuota cestino',
+        danger: true
+      });
+      if (!ok) return;
+      store.emptyTrash();
+      renderHomeScreen();
+      renderSidebarList();
+      showToast('Cestino svuotato definitivamente.');
     });
 
     // Eventi sulle card delle mappe nella griglia
@@ -1052,6 +1252,37 @@
         return;
       }
 
+      const restoreBtn = e.target.closest('[data-restore-map]');
+      if (restoreBtn) {
+        const id = restoreBtn.getAttribute('data-restore-map');
+        const restored = store.restoreMap(id);
+        if (restored) {
+          renderHomeScreen();
+          renderSidebarList();
+          showToast(`Mappa "${restored.title}" ripristinata!`, 'ok');
+        }
+        return;
+      }
+
+      const purgeBtn = e.target.closest('[data-purge-map]');
+      if (purgeBtn) {
+        const id = purgeBtn.getAttribute('data-purge-map');
+        const m = store.maps.find((x) => x.id === id);
+        if (!m) return;
+        const ok = await openConfirmDialog({
+          title: 'Elimina definitivamente',
+          message: `Vuoi eliminare per sempre la mappa "${m.title}" dal cestino? Questa operazione non può essere annullata.`,
+          confirmText: 'Elimina del tutto',
+          danger: true
+        });
+        if (!ok) return;
+        store.purgeMap(id);
+        renderHomeScreen();
+        renderSidebarList();
+        showToast('Mappa eliminata definitivamente.');
+        return;
+      }
+
       const delBtn = e.target.closest('[data-del-map]');
       if (delBtn) {
         e.stopPropagation();
@@ -1059,16 +1290,16 @@
         const m = store.maps.find((x) => x.id === id);
         if (!m) return;
         const ok = await openConfirmDialog({
-          title: 'Elimina mappa',
-          message: `Vuoi eliminare definitivamente la mappa "${m.title}"?`,
-          confirmText: 'Elimina',
+          title: 'Sposta nel cestino',
+          message: `Vuoi spostare la mappa "${m.title}" nel cestino? Rimarrà nel cestino per 30 giorni (ripristinabile in qualsiasi momento) prima di essere eliminata definitivamente.`,
+          confirmText: 'Sposta nel cestino',
           danger: true
         });
         if (!ok) return;
         store.deleteMap(id);
         renderHomeScreen();
         renderSidebarList();
-        showToast('Mappa eliminata.');
+        showToast('Mappa spostata nel cestino (30 giorni).');
       }
     });
 
@@ -2910,9 +3141,9 @@
         const targetMap = store.maps.find((x) => x.id === id);
         if (targetMap) {
           openConfirmDialog({
-            title: 'Elimina mappa',
-            message: `Vuoi eliminare definitivamente la mappa "${targetMap.title}"?`,
-            confirmText: 'Elimina',
+            title: 'Sposta nel cestino',
+            message: `Vuoi spostare la mappa "${targetMap.title}" nel cestino? Rimarrà lì per 30 giorni prima di essere cancellata definitivamente.`,
+            confirmText: 'Sposta nel cestino',
             danger: true
           }).then((ok) => {
             if (!ok) return;
@@ -2927,7 +3158,7 @@
               refreshAll(true);
               updateUrlForMap(m.id);
             }
-            showToast('Mappa eliminata.');
+            showToast('Mappa spostata nel cestino (30 giorni).');
           });
         }
         return;
